@@ -1,0 +1,81 @@
+import pretty_midi
+import pickle
+from pathlib import Path
+from random import seed, shuffle
+
+
+def get_p_extension_list(folder, extension='xml', seed_int=666):
+  p_folder = Path(folder)
+  p_extension_list = list(p_folder.glob('**/*.' + extension))
+
+  seed(seed_int)
+  shuffle(p_extension_list)
+
+  return p_extension_list
+
+
+def generate_pianoroll_dict(p_midi_list, batch_song=16, start_index=0, fs=30):
+  assert len(p_midi_list) >= batch_song
+
+  pianoroll_dict = {}  # key: file_num, value: pianoroll
+  process_midi = range(start_index, min(start_index + batch_song, len(p_midi_list)))
+
+  for p_midi in p_midi_list:
+    name_num = int(p_midi.name.split('.')[0])
+    try:
+      midi_pretty_format = pretty_midi.PrettyMIDI(str(p_midi))
+      piano_midi = midi_pretty_format.instruments[0]  # Get the piano channels
+      piano_roll = piano_midi.get_piano_roll(fs=fs)
+      pianoroll_dict[name_num] = piano_roll
+    except Exception as e:
+      print(e)
+      print("broken file : {}".format(str(p_midi)))
+      pass
+
+  return pianoroll_dict
+
+
+def generate_notes_chord_dict(p_chord_list, fs=30):
+
+  notes_chord_dict = {}  # key: file_num, value: notes_chord
+  for p_chord in p_chord_list:
+    name_num = int(p_chord.name.split('.')[0])
+    with open(str(p_chord), "rb") as f:
+      chord_symbols = pickle.load(f)  # (chord_num, [chord, start, end])
+
+    chord_list = []
+    for chord_info in chord_symbols:
+      # get upper code of oncode
+      # Todo: use regular expression
+      if '|' in chord_info[0]:
+        chord = chord_info[0].split('|')[0]
+      elif ' ' in chord_info[0]:
+        chord = chord_info[0].split(' ')[0]
+      else:
+        chord = chord_info[0]
+      chord_list.append(chord)
+
+    counter = 0
+    notes_chord = []
+    for i in range(len(chord_symbols)):
+      end_time_sec = chord_symbols[i][2]
+      while (counter < int(end_time_sec * fs)):
+        notes_chord.append(chord_list[i])
+        counter += 1
+    notes_chord_dict[name_num] = notes_chord
+
+  return notes_chord_dict
+
+
+def reshape_dicts(pianoroll_dict, notes_chord_dict):
+
+  for i in range(len(pianoroll_dict.keys())):
+    pianoroll_dict_len = pianoroll_dict[i].shape[1]
+    notes_chord_dict_len = len(notes_chord_dict[i])
+
+    if pianoroll_dict_len >= notes_chord_dict_len:
+      pianoroll_dict[i] = pianoroll_dict[i][:notes_chord_dict_len]
+    else:
+      notes_chord_dict[i] = notes_chord_dict[i][:pianoroll_dict_len]
+
+  return pianoroll_dict, notes_chord_dict
