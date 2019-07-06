@@ -25,7 +25,8 @@ import sys
 sys.path.append("/home/azuma/workspace/git/lead-sheet-dataset/src")
 
 from lookup_tables import NOTE_TO_OFFSET
-from roman_to_symbol import reset_chord_basic, to_chromagram
+from tab_parser import proc_xml
+from roman_to_symbol import reset_chord_basic, to_chromagram, proc_roman_to_symbol
 
 octave_melody = 5
 root_heigest_note = 53
@@ -173,3 +174,20 @@ def proc_midi_to_pianoroll(filename, beats_in_measure):
     piano_roll = pypianoroll.parse(filename)
     piano_roll.downbeat[0::piano_roll.beat_resolution * beats_in_measure] = True
     return piano_roll
+
+
+def xml2mid(xml_path_list, save_path):
+
+  for i, xml_path in enumerate(xml_path_list):
+    raw_roman = proc_xml(xml_path)
+
+    # to event symbol
+    raw_symbol = proc_roman_to_symbol(raw_roman)
+
+    # to midi
+    beats_in_measure = int(raw_symbol['metadata']['beats_in_measure'])
+    proc_event_to_midi(raw_symbol, name=str(i))
+
+  return
+
+
