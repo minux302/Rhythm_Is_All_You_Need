@@ -2,23 +2,6 @@ import os
 import pretty_midi
 import pickle
 import glob
-from random import shuffle, seed
-
-
-def get_list_extension(folder, extension='xml', seed_int=666):
-
-  folder_extension = folder + "/**/*." + extension
-  list_all_extension = glob.glob(folder_extension, recursive=True)
-
-  seed(seed_int)
-  shuffle(list_all_extension)
-
-  return list_all_extension
-
-
-# =================================================================================
-# xml => mid utility
-# =================================================================================
 
 import sys
 sys.path.append("/home/azuma/workspace/git/lead-sheet-dataset/src")
