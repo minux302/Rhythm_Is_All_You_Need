@@ -1,6 +1,5 @@
 import os
 import pretty_midi
-import pypianoroll
 import pickle
 import glob
 from random import shuffle, seed
@@ -170,13 +169,7 @@ def proc_event_to_midi(raw_symbol, save_path='./dataset', name='test'):
     return midi
 
 
-def proc_midi_to_pianoroll(filename, beats_in_measure):
-    piano_roll = pypianoroll.parse(filename)
-    piano_roll.downbeat[0::piano_roll.beat_resolution * beats_in_measure] = True
-    return piano_roll
-
-
-def xml2mid(xml_path_list, save_path):
+def xml_to_mid(xml_path_list, save_path):
 
   for i, xml_path in enumerate(xml_path_list):
     raw_roman = proc_xml(xml_path)
@@ -189,5 +182,4 @@ def xml2mid(xml_path_list, save_path):
     proc_event_to_midi(raw_symbol, name=str(i))
 
   return
-
 
