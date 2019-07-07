@@ -156,7 +156,11 @@ def proc_event_to_midi(raw_symbol, save_path='./dataset', name='test'):
 def xml_to_mid(xml_path_list, save_path):
 
   for i, xml_path in enumerate(xml_path_list):
-    raw_roman = proc_xml(xml_path)
+    try:
+      raw_roman = proc_xml(xml_path)
+    except Exception as e:
+      print('> Broken File!!!')
+      continue
 
     # to event symbol
     raw_symbol = proc_roman_to_symbol(raw_roman)
