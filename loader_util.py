@@ -74,15 +74,30 @@ def generate_notes_chord_dict(p_midi_list, batch_song=16, start_idx=0, fs=30):
   return notes_chord_dict
 
 
-def align_dicts_length(pianoroll_dict, notes_chord_dict):
+def align_dicts(pianoroll_dict, notes_chord_dict):
 
-  for i in range(len(pianoroll_dict.keys())):
-    pianoroll_dict_len = pianoroll_dict[i].shape[1]
-    notes_chord_dict_len = len(notes_chord_dict[i])
+  # get key that has .mid and .chord
+  pianoroll_keys = list(pianoroll_dict.keys())
+  notes_chord_keys = list(notes_chord_dict.keys())
+  common_keys = list(set(pianoroll_keys) & set(notes_chord_keys))
 
+  # rm abundant item
+  rm_list = list(set(pianoroll_keys) - set(common_keys))
+  for i in rm_list:
+    del pianoroll_dict[i]
+  rm_list = list(set(notes_chord_keys) - set(common_keys))
+  for i in rm_list:
+    del notes_chord_dict[i]
+
+  # align length of value
+  for key in common_keys:
+    pianoroll_dict_len = pianoroll_dict[key].shape[1]
+    notes_chord_dict_len = len(notes_chord_dict[key])
     if pianoroll_dict_len >= notes_chord_dict_len:
-      pianoroll_dict[i] = pianoroll_dict[i][:notes_chord_dict_len]
+      # Todo: Refine
+      pianoroll_dict[key] = pianoroll_dict[key].T[:notes_chord_dict_len]
+      pianoroll_dict[key] = pianoroll_dict[key].T
     else:
-      notes_chord_dict[i] = notes_chord_dict[i][:pianoroll_dict_len]
+      notes_chord_dict[key] = notes_chord_dict[key][:pianoroll_dict_len]
 
   return pianoroll_dict, notes_chord_dict
