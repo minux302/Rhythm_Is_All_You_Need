@@ -14,13 +14,14 @@ def get_p_extension_list(folder, extension='xml', seed_int=666):
   return p_extension_list
 
 
-def generate_pianoroll_dict(p_midi_list, batch_song=16, start_index=0, fs=30):
+def generate_pianoroll_dict(p_midi_list, batch_song=16, start_idx=0, fs=30):
   assert len(p_midi_list) >= batch_song
 
   pianoroll_dict = {}  # key: file_num, value: pianoroll
-  process_midi = range(start_index, min(start_index + batch_song, len(p_midi_list)))
+  idx_list = range(start_idx, min(start_idx + batch_song, len(p_midi_list)))
 
-  for p_midi in p_midi_list:
+  for i in idx_list:
+    p_midi = p_midi_list[i]
     name_num = int(p_midi.name.split('.')[0])
     try:
       midi_pretty_format = pretty_midi.PrettyMIDI(str(p_midi))
@@ -35,11 +36,17 @@ def generate_pianoroll_dict(p_midi_list, batch_song=16, start_index=0, fs=30):
   return pianoroll_dict
 
 
-def generate_notes_chord_dict(p_chord_list, fs=30):
+def generate_notes_chord_dict(p_midi_list, batch_song=16, start_idx=0, fs=30):
+  assert len(p_midi_list) >= batch_song
 
   notes_chord_dict = {}  # key: file_num, value: notes_chord
-  for p_chord in p_chord_list:
-    name_num = int(p_chord.name.split('.')[0])
+  idx_list = range(start_idx, min(start_idx + batch_song, len(p_midi_list)))
+
+  for i in idx_list:
+    p_midi = p_midi_list[i]
+    name_num = int(p_midi.name.split('.')[0])
+
+    p_chord = p_midi.parent / (str(name_num) + '.chord')
     with open(str(p_chord), "rb") as f:
       chord_symbols = pickle.load(f)  # (chord_num, [chord, start, end])
 
@@ -67,7 +74,7 @@ def generate_notes_chord_dict(p_chord_list, fs=30):
   return notes_chord_dict
 
 
-def reshape_dicts(pianoroll_dict, notes_chord_dict):
+def align_dicts_length(pianoroll_dict, notes_chord_dict):
 
   for i in range(len(pianoroll_dict.keys())):
     pianoroll_dict_len = pianoroll_dict[i].shape[1]
