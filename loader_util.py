@@ -1,3 +1,4 @@
+import numpy as np
 import pretty_midi
 import pickle
 from pathlib import Path
@@ -74,6 +75,70 @@ def generate_notes_chord_dict(p_midi_list, batch_song=16, start_idx=0, fs=30):
   return notes_chord_dict
 
 
+def generate_time_note_dict(pianoroll_dict):
+  time_note_dict = {} # key: file_num, value: time_note_dict
+
+  for name_num in pianoroll_dict.keys():
+    pianoroll = pianoroll_dict[name_num]
+    pianoroll_T = pianoroll.T
+    time_note_list = []
+
+    # add top note idx
+    for i in range(pianoroll_T.shape[0]):
+      note = np.nonzero(pianoroll_T[i])[0]
+      if len(note) == 0:
+        time_note_list.append('e')
+      else:
+        time_note_list.append(max(note))
+
+    time_note_dict[name_num] = time_note_list
+
+  return time_note_dict
+
+
+def generate_input_and_target(time_note, seq_len=50):
+  start, end = 0, len(time_note)
+  input_list, target_list = [], []
+
+  for idx in range(start, end):
+    input_sample, target_sample = [], []
+    start_iterate = 0
+
+    if idx < seq_len:
+      start_iterate = seq_len - idx - 1
+      for i in range(start_iterate):
+        input_sample.append('e')
+
+    for i in range(start_iterate, seq_len):
+      current_idx = idx - (seq_len - i - 1)
+      input_sample.append(time_note[current_idx])
+
+    if idx + 1 < end:
+      target_sample.append(time_note[idx + 1])
+    else:
+      target_sample.append('e')
+
+    input_list.append(input_sample)
+    target_list.append(target_sample)
+
+  return input_list, target_list
+
+
+def generate_batch(p_midi_list, batch_song=16, start_idx=0, fs=30, seq_len=50):
+  assert len(p_midi_list) >= batch_song
+
+  batch_input, batch_target = [], []
+  pianoroll_dict = generate_pianoroll_dict(p_midi_list, batch_song=batch_song, fs=fs)
+  time_note_dict = generate_time_note_dict(pianoroll_dict)
+
+  for i in list(time_note_dict.keys()):
+    input_list, target_list = generate_input_and_target(time_note_dict[i], seq_len)
+    batch_input += input_list
+    batch_target += target_list
+
+  return batch_input, batch_target
+
+
 def align_dicts(pianoroll_dict, notes_chord_dict):
 
   # get key that has .mid and .chord
@@ -101,3 +166,5 @@ def align_dicts(pianoroll_dict, notes_chord_dict):
       notes_chord_dict[key] = notes_chord_dict[key][:pianoroll_dict_len]
 
   return pianoroll_dict, notes_chord_dict
+
+
