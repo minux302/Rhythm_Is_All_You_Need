@@ -166,3 +166,13 @@ def xml_to_mid(xml_path_list, save_path):
     proc_event_to_midi(raw_symbol, name=str(i))
 
   return
+
+
+if __name__ == '__main__':
+  from loader_util import get_p_extension_list
+
+  folder = '/home/azuma/workspace/git/lead-sheet-dataset/datasets/xml/a'
+  save_path = './dataset'
+
+  p_xml_list = get_p_extension_list(folder, 'xml')
+  xml_to_mid(p_xml_list, save_path)
