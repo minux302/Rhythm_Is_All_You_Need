@@ -153,21 +153,22 @@ def proc_event_to_midi(raw_symbol, save_path='./dataset', name='test'):
   return midi
 
 
-def xml_to_mid(xml_path_list, save_path):
+def xml_to_mid_and_chord(xml_path_list, save_path):
 
   for i, xml_path in enumerate(xml_path_list):
     try:
       raw_roman = proc_xml(xml_path)
+
+      # to event symbol
+      raw_symbol = proc_roman_to_symbol(raw_roman)
+
+      # to midi
+      beats_in_measure = int(raw_symbol['metadata']['beats_in_measure'])
+      proc_event_to_midi(raw_symbol, name=str(i))
+
     except Exception as e:
       print('> Broken File!!!')
       continue
-
-    # to event symbol
-    raw_symbol = proc_roman_to_symbol(raw_roman)
-
-    # to midi
-    beats_in_measure = int(raw_symbol['metadata']['beats_in_measure'])
-    proc_event_to_midi(raw_symbol, name=str(i))
 
   return
 
@@ -175,8 +176,8 @@ def xml_to_mid(xml_path_list, save_path):
 if __name__ == '__main__':
   from loader_util import get_p_extension_list
 
-  folder = '/home/azuma/workspace/git/lead-sheet-dataset/datasets/xml/a'
+  folder = '/home/azuma/workspace/git/lead-sheet-dataset/datasets/xml'
   save_path = './dataset'
 
   p_xml_list = get_p_extension_list(folder, 'xml')
-  xml_to_mid(p_xml_list, save_path)
+  xml_to_mid_and_chord(p_xml_list, save_path)
