@@ -76,7 +76,7 @@ def generate_notes_chord_dict(p_midi_list, batch_song=16, start_idx=0, fs=30):
 
 
 def generate_time_note_dict(pianoroll_dict):
-  time_note_dict = {} # key: file_num, value: time_note_dict
+  time_note_dict = {}  # key: file_num, value: time_note_dict
 
   for name_num in pianoroll_dict.keys():
     pianoroll = pianoroll_dict[name_num]
@@ -127,16 +127,22 @@ def generate_input_and_target(time_note, seq_len=50):
 def generate_batch(p_midi_list, batch_song=16, start_idx=0, fs=30, seq_len=50):
   assert len(p_midi_list) >= batch_song
 
-  batch_input, batch_target = [], []
-  pianoroll_dict = generate_pianoroll_dict(p_midi_list, batch_song=batch_song, fs=fs)
+  batch_song_input, batch_song_target = [], []
+  pianoroll_dict = generate_pianoroll_dict(p_midi_list,
+                                           batch_song=batch_song,
+                                           start_idx=start_idx,
+                                           fs=fs)
   time_note_dict = generate_time_note_dict(pianoroll_dict)
 
   for i in list(time_note_dict.keys()):
     input_list, target_list = generate_input_and_target(time_note_dict[i], seq_len)
-    batch_input += input_list
-    batch_target += target_list
+    batch_song_input += input_list
+    batch_song_target += target_list
 
-  return batch_input, batch_target
+  batch_song_input = np.array(batch_song_input)
+  batch_song_target = np.array(batch_song_target)
+
+  return batch_song_input, batch_song_target
 
 
 def align_dicts(pianoroll_dict, notes_chord_dict):
