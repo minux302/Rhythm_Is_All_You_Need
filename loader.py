@@ -1,6 +1,7 @@
 import numpy as np
 import pretty_midi
 import pickle
+import math
 from pathlib import Path
 from random import seed, shuffle
 
@@ -66,16 +67,10 @@ class MelodyandChordLoader:
     return batch_input, batch_target
 
   def get_batch_song_num(self):
-    if self.total_songs % self.batch_song == 0:
-      return int(self.total_songs / self.batch_song)
-    else:
-      return int(self.total_songs / self.batch_song) + 1
+    return math.ceil(self.total_songs / self.batch_song)
 
   def get_batch_num(self):
-    if len(self.batch_song_input) % self.batch_size == 0:
-      return int(len(self.batch_song_input) / self.batch_size)
-    else:
-      return int(len(self.batch_song_input) / self.batch_size) + 1
+    return math.ceil(len(self.batch_song_input) / self.batch_size)
 
   def shuffle_midi_list(self):
     shuffle(self.p_midi_list)
@@ -236,6 +231,7 @@ if __name__ == '__main__':
     loader.generate_batch_buffer(i)
 
     batch_num = loader.get_batch_num()
+    print(batch_num)
     for j in range(0, batch_num):
       batch_input, batch_target = loader.get_batch(j)
 
