@@ -5,12 +5,12 @@ from pathlib import Path
 from random import seed, shuffle
 
 
-def get_p_extension_list(folder, extension='xml', seed_int=666):
+seed(666)
+
+
+def get_p_extension_list(folder, extension='mid'):
   p_folder = Path(folder)
   p_extension_list = list(p_folder.glob('**/*.' + extension))
-
-  seed(seed_int)
-  shuffle(p_extension_list)
 
   return p_extension_list
 
@@ -27,6 +27,7 @@ class MelodyandChordLoader:
     assert len(p_midi_list) >= batch_song, "p_midi_lsit must be longer than batch_song"
 
     self.p_midi_list = p_midi_list
+    self.total_songs = len(p_midi_list)
     self.batch_song = batch_song
     self.batch_size = batch_size
     self.fs = fs
@@ -36,12 +37,13 @@ class MelodyandChordLoader:
     self.batch_song_target = np.empty((0, 1))
     self.batch_idx_list = np.array([])
 
-  def generate_batch_buffer(self, start_idx, shuffle=True):
+  def generate_batch_buffer(self, i, shuffle=True):
 
+    start_idx = i * self.batch_song
     self.batch_song_input = np.empty((0, self.seq_len))
     self.batch_song_target = np.empty((0, 1))
 
-    pianoroll_dict = self.generate_pianoroll_dict(start_idx=start_idx)
+    pianoroll_dict = self.generate_pianoroll_dict(start_idx)
     time_note_dict = self.generate_time_note_dict(pianoroll_dict)
 
     for key in list(time_note_dict.keys()):
@@ -56,14 +58,55 @@ class MelodyandChordLoader:
     return
 
   def get_batch(self, i):
-    current_idx = self.batch_idx_list[i: i + self.batch_size]
+    idx = i * self.batch_size
+    current_idx = self.batch_idx_list[idx: idx + self.batch_size]
     batch_input = self.batch_song_input[current_idx]
     batch_target = self.batch_song_target[current_idx]
 
     return batch_input, batch_target
 
-  def get_batch_song_len(self):
-    return len(self.batch_song_input)
+  def get_batch_song_num(self):
+    if self.total_songs % self.batch_song == 0:
+      return int(self.total_songs / self.batch_song)
+    else:
+      return int(self.total_songs / self.batch_song) + 1
+
+  def get_batch_num(self):
+    if len(self.batch_song_input) % self.batch_size == 0:
+      return int(len(self.batch_song_input) / self.batch_size)
+    else:
+      return int(len(self.batch_song_input) / self.batch_size) + 1
+
+  def shuffle_midi_list(self):
+    shuffle(self.p_midi_list)
+    return
+
+  def generate_input_and_target(self, time_note):
+    start, end = 0, len(time_note)
+    input_list, target_list = [], []
+
+    for idx in range(start, end):
+      input_sample, target_sample = [], []
+      start_iterate = 0
+
+      if idx < self.seq_len:
+        start_iterate = self.seq_len - idx - 1
+        for i in range(start_iterate):
+          input_sample.append('e')
+
+      for i in range(start_iterate, self.seq_len):
+        current_idx = idx - (self.seq_len - i - 1)
+        input_sample.append(time_note[current_idx])
+
+      if idx + 1 < end:
+        target_sample.append(time_note[idx + 1])
+      else:
+        target_sample.append('e')
+
+      input_list.append(input_sample)
+      target_list.append(target_sample)
+
+    return np.array(input_list), np.array(target_list)
 
   def generate_pianoroll_dict(self, start_idx):
 
@@ -140,33 +183,6 @@ class MelodyandChordLoader:
 
     return time_note_dict
 
-  def generate_input_and_target(self, time_note):
-    start, end = 0, len(time_note)
-    input_list, target_list = [], []
-
-    for idx in range(start, end):
-      input_sample, target_sample = [], []
-      start_iterate = 0
-
-      if idx < self.seq_len:
-        start_iterate = self.seq_len - idx - 1
-        for i in range(start_iterate):
-          input_sample.append('e')
-
-      for i in range(start_iterate, self.seq_len):
-        current_idx = idx - (self.seq_len - i - 1)
-        input_sample.append(time_note[current_idx])
-
-      if idx + 1 < end:
-        target_sample.append(time_note[idx + 1])
-      else:
-        target_sample.append('e')
-
-      input_list.append(input_sample)
-      target_list.append(target_sample)
-
-    return np.array(input_list), np.array(target_list)
-
   def align_dicts(self, pianoroll_dict, notes_chord_dict):
 
     # get key that has .mid and .chord
@@ -195,3 +211,32 @@ class MelodyandChordLoader:
 
     return pianoroll_dict, notes_chord_dict
 
+
+if __name__ == '__main__':
+
+  save_path = './debug_dataset'
+  p_midi_list = get_p_extension_list(save_path, 'mid')
+
+  seq_len = 50
+  batch_song = 3
+  batch_size = 20
+  fs = 5  # frame_per_second
+
+  loader = MelodyandChordLoader(p_midi_list=p_midi_list,
+                                batch_song=batch_song,
+                                batch_size=batch_size,
+                                fs=fs,
+                                seq_len=seq_len)
+
+  loader.shuffle_midi_list()
+  batch_song_num = loader.get_batch_song_num()
+
+  for i in range(0, batch_song_num):
+    print("{} ======================= ".format(i))
+    loader.generate_batch_buffer(i)
+
+    batch_num = loader.get_batch_num()
+    for j in range(0, batch_num):
+      batch_input, batch_target = loader.get_batch(j)
+
+      print(batch_target.shape)
