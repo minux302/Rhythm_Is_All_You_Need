@@ -44,11 +44,11 @@ class MelodyandChordLoader:
     self.batch_song_input = np.empty((0, self.seq_len))
     self.batch_song_target = np.empty((0, 1))
 
-    pianoroll_dict = self.generate_pianoroll_dict(start_idx)
-    time_note_dict = self.generate_time_note_dict(pianoroll_dict)
+    pianoroll_dict = self._generate_pianoroll_dict(start_idx)
+    time_note_dict = self._generate_time_note_dict(pianoroll_dict)
 
     for key in list(time_note_dict.keys()):
-      input_list, target_list = self.generate_input_and_target(time_note_dict[key])
+      input_list, target_list = self._generate_input_and_target(time_note_dict[key])
       self.batch_song_input = np.append(self.batch_song_input, input_list, axis=0)
       self.batch_song_target = np.append(self.batch_song_target, target_list, axis=0)
 
@@ -76,7 +76,7 @@ class MelodyandChordLoader:
     shuffle(self.p_midi_list)
     return
 
-  def generate_input_and_target(self, time_note):
+  def _generate_input_and_target(self, time_note):
     start, end = 0, len(time_note)
     input_list, target_list = [], []
 
@@ -103,7 +103,7 @@ class MelodyandChordLoader:
 
     return np.array(input_list), np.array(target_list)
 
-  def generate_pianoroll_dict(self, start_idx):
+  def _generate_pianoroll_dict(self, start_idx):
 
     pianoroll_dict = {}  # key: file_num, value: pianoroll
     idx_list = range(start_idx, min(start_idx + self.batch_song, len(self.p_midi_list)))
@@ -123,7 +123,7 @@ class MelodyandChordLoader:
 
     return pianoroll_dict
 
-  def generate_notes_chord_dict(self, start_idx):
+  def _generate_notes_chord_dict(self, start_idx):
 
     notes_chord_dict = {}  # key: file_num, value: notes_chord
     idx_list = range(start_idx, min(start_idx + self.batch_song, len(self.p_midi_list)))
@@ -158,7 +158,7 @@ class MelodyandChordLoader:
 
     return notes_chord_dict
 
-  def generate_time_note_dict(self, pianoroll_dict):
+  def _generate_time_note_dict(self, pianoroll_dict):
     time_note_dict = {}  # key: file_num, value: time_note_dict
 
     for name_num in pianoroll_dict.keys():
@@ -178,7 +178,7 @@ class MelodyandChordLoader:
 
     return time_note_dict
 
-  def align_dicts(self, pianoroll_dict, notes_chord_dict):
+  def _align_dicts(self, pianoroll_dict, notes_chord_dict):
 
     # get key that has .mid and .chord
     pianoroll_keys = list(pianoroll_dict.keys())
