@@ -20,19 +20,21 @@ class MelodyandChordLoader:
 
   def __init__(self,
                p_midi_list,
-               batch_song=16,
+               seq_len,
+               class_num,
+               batch_song_size=16,
                batch_size=256,
-               fs=30,
-               seq_len=50):
+               fs=30):
 
-    assert len(p_midi_list) >= batch_song, "p_midi_lsit must be longer than batch_song"
+    assert len(p_midi_list) >= batch_song_size, "p_midi_lsit must be longer than batch_song_size"
 
     self.p_midi_list = p_midi_list
     self.total_songs = len(p_midi_list)
-    self.batch_song = batch_song
+    self.seq_len = seq_len
+    self.class_num = class_num
+    self.batch_song_size = batch_song_size
     self.batch_size = batch_size
     self.fs = fs
-    self.seq_len = seq_len
 
     self.batch_song_input = np.empty((0, self.seq_len))
     self.batch_song_target = np.empty((0, 1))
@@ -40,7 +42,7 @@ class MelodyandChordLoader:
 
   def generate_batch_buffer(self, i, shuffle=True):
 
-    start_idx = i * self.batch_song
+    start_idx = i * self.batch_song_size
     self.batch_song_input = np.empty((0, self.seq_len))
     self.batch_song_target = np.empty((0, 1))
 
@@ -67,10 +69,13 @@ class MelodyandChordLoader:
     return batch_input, batch_target
 
   def get_batch_song_num(self):
-    return math.ceil(self.total_songs / self.batch_song)
+    return math.ceil(self.total_songs / self.batch_song_size)
 
   def get_batch_num(self):
     return math.ceil(len(self.batch_song_input) / self.batch_size)
+
+  def get_total_songs(self):
+    return self.total_songs
 
   def shuffle_midi_list(self):
     shuffle(self.p_midi_list)
@@ -87,7 +92,7 @@ class MelodyandChordLoader:
       if idx < self.seq_len:
         start_iterate = self.seq_len - idx - 1
         for i in range(start_iterate):
-          input_sample.append('e')
+          input_sample.append(self.class_num)
 
       for i in range(start_iterate, self.seq_len):
         current_idx = idx - (self.seq_len - i - 1)
@@ -96,7 +101,7 @@ class MelodyandChordLoader:
       if idx + 1 < end:
         target_sample.append(time_note[idx + 1])
       else:
-        target_sample.append('e')
+        target_sample.append(self.class_num)
 
       input_list.append(input_sample)
       target_list.append(target_sample)
@@ -106,7 +111,7 @@ class MelodyandChordLoader:
   def _generate_pianoroll_dict(self, start_idx):
 
     pianoroll_dict = {}  # key: file_num, value: pianoroll
-    idx_list = range(start_idx, min(start_idx + self.batch_song, len(self.p_midi_list)))
+    idx_list = range(start_idx, min(start_idx + self.batch_song_size, len(self.p_midi_list)))
 
     for i in idx_list:
       p_midi = self.p_midi_list[i]
@@ -117,7 +122,7 @@ class MelodyandChordLoader:
         piano_roll = piano_midi.get_piano_roll(fs=self.fs)
         pianoroll_dict[name_num] = piano_roll
       except Exception as e:
-        print(e)
+        # print(e)
         print("broken file : {}".format(str(p_midi)))
         pass
 
@@ -126,7 +131,7 @@ class MelodyandChordLoader:
   def _generate_notes_chord_dict(self, start_idx):
 
     notes_chord_dict = {}  # key: file_num, value: notes_chord
-    idx_list = range(start_idx, min(start_idx + self.batch_song, len(self.p_midi_list)))
+    idx_list = range(start_idx, min(start_idx + self.batch_song_size, len(self.p_midi_list)))
 
     for i in idx_list:
       p_midi = self.p_midi_list[i]
@@ -170,7 +175,7 @@ class MelodyandChordLoader:
       for i in range(pianoroll_T.shape[0]):
         note = np.nonzero(pianoroll_T[i])[0]
         if len(note) == 0:
-          time_note_list.append('e')
+          time_note_list.append(128)
         else:
           time_note_list.append(max(note))
 
@@ -213,15 +218,17 @@ if __name__ == '__main__':
   p_midi_list = get_p_extension_list(save_path, 'mid')
 
   seq_len = 50
-  batch_song = 3
+  class_num = 128
+  batch_song_size = 3
   batch_size = 20
   fs = 5  # frame_per_second
 
   loader = MelodyandChordLoader(p_midi_list=p_midi_list,
-                                batch_song=batch_song,
+                                seq_len=seq_len,
+                                class_num=class_num,
+                                batch_song_size=batch_song_size,
                                 batch_size=batch_size,
-                                fs=fs,
-                                seq_len=seq_len)
+                                fs=fs)
 
   loader.shuffle_midi_list()
   batch_song_num = loader.get_batch_song_num()
