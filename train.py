@@ -11,14 +11,14 @@ from loader import MelodyandChordLoader, get_p_extension_list
 def train(id, reset):
 
   # set log and ckpt dir
-  log_dir = config.LOG_DIR
+  log_dir  = config.LOG_DIR
   save_dir = config.SAVE_DIR
   if not(os.path.exists(log_dir)):
     os.system('mkdir ' + log_dir)
   if not(os.path.exists(save_dir)):
     os.system('mkdir ' + save_dir)
 
-  log_id_dir = os.path.join(log_dir, id)
+  log_id_dir  = os.path.join(log_dir, id)
   save_id_dir = os.path.join(save_dir, id)
   if reset:
     if os.path.exists(log_id_dir):
@@ -47,9 +47,9 @@ def train(id, reset):
     # model build
     model = Model(config.SEQ_LEN, config.CLASS_NUM)
     input_pl, label_pl = model.placeholders()
-    pred = model.infer(input_pl)
-    loss = model.loss(pred, label_pl)
-    opt = model.optimizer(loss)
+    pred  = model.infer(input_pl)
+    loss  = model.loss(pred, label_pl)
+    opt   = model.optimizer(loss)
 
     saver = tf.train.Saver()
     config_gpu = tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True))
@@ -61,7 +61,7 @@ def train(id, reset):
       init_op = tf.global_variables_initializer()
       sess.run([init_op])
 
-      merged = tf.summary.merge_all()
+      merged       = tf.summary.merge_all()
       train_writer = tf.summary.FileWriter(os.path.join(log_dir, id + '/train'), sess.graph)
       valid_writer = tf.summary.FileWriter(os.path.join(log_dir, id + '/valid'))
 
@@ -92,11 +92,11 @@ def train(id, reset):
 
           batch_song_iter_num += 1
           loss_summary, summary = sess.run([loss, merged], feed_dict)  # summary for last batch
+          train_writer.add_summary(summary, batch_song_iter_num)
           print("epoch: {}, song: {}/{}, Loss: {}".format(epoch + 1,
                                                           batch_song_idx * config.BATCH_SONG_SIZE, 
                                                           train_loader.get_total_songs(),
                                                           loss_summary))
-          train_writer.add_summary(summary, batch_song_iter_num)
 
           # valid
           if batch_song_iter_num % config.VALIDATION_INTERVAL == 0:
