@@ -93,31 +93,35 @@ def train(id, reset):
           batch_song_iter_num += 1
           loss_summary, summary = sess.run([loss, merged], feed_dict)  # summary for last batch
           print("epoch: {}, song: {}/{}, Loss: {}".format(epoch + 1,
-                                                          batch_song_iter_num * config.BATCH_SONG_SIZE, 
+                                                          batch_song_idx * config.BATCH_SONG_SIZE, 
                                                           train_loader.get_total_songs(),
                                                           loss_summary))
           train_writer.add_summary(summary, batch_song_iter_num)
 
-        # valid
-        if batch_song_iter_num % config.VALIDATION_INTERVAL == 0:
+          # valid
+          if batch_song_iter_num % config.VALIDATION_INTERVAL == 0:
 
-          # validate one batch only for time saving 
-          valid_loader.shuffle_midi_list()
-          valid_loader.generate_batch_buffer(0)
-          batch_input, batch_target = valid_loader.get_batch(0)
+            # validate one batch only for time saving 
+            valid_loader.shuffle_midi_list()
+            valid_loader.generate_batch_buffer(0)
+            batch_input, batch_target = valid_loader.get_batch(0)
 
-          feed_dict = {
-              input_pl: batch_input,
-              label_pl: batch_target,
-          }
+            feed_dict = {
+                input_pl: batch_input,
+                label_pl: batch_target,
+            }
 
-          _, summary = sess.run([loss, merged], feed_dict)
-          valid_writer.add_summary(summary, batch_song_iter_num)
+            _, summary = sess.run([loss, merged], feed_dict)
+            valid_writer.add_summary(summary, batch_song_iter_num)
 
-        # saver
+        # save
+        save_path = os.path.join(save_id_dir, id + '_' + str(epoch))
+        saver.save(sess, save_path)
+
+  train_writer.close()
+  valid_writer.close()
 
   print('train is finished !!')
-
 
 
 @click.command(context_settings=dict(help_option_names=['-h', '--help']))
