@@ -48,11 +48,12 @@ def train(id, reset):
   with tf.Graph().as_default():
 
     # model build
-    model = Model(config.SEQ_LEN, config.CLASS_NUM)
+    model              = Model(config.SEQ_LEN, config.CLASS_NUM)
     input_pl, label_pl = model.placeholders()
-    pred  = model.infer(input_pl)
-    loss  = model.loss(pred, label_pl)
-    opt   = model.optimizer(loss)
+    is_training_pl     = tf.placeholder(tf.bool, name="is_training")
+    pred               = model.infer(input_pl, is_training_pl)
+    loss               = model.loss(pred, label_pl)
+    opt                = model.optimizer(loss)
 
     saver = tf.train.Saver()
     config_gpu = tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True))
@@ -89,6 +90,7 @@ def train(id, reset):
             feed_dict = {
                 input_pl: batch_input,
                 label_pl: batch_target,
+                is_training_pl: True
             }
             _, _loss = sess.run([opt, loss], feed_dict)
 
@@ -111,6 +113,7 @@ def train(id, reset):
             feed_dict = {
                 input_pl: batch_input,
                 label_pl: batch_target,
+                is_training_pl: False
             }
 
             _, summary = sess.run([loss, merged], feed_dict)

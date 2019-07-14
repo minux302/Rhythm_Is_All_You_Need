@@ -1,7 +1,4 @@
 import tensorflow as tf
-from tensorflow.keras import backend as K
-from tensorflow.keras.losses import sparse_categorical_crossentropy
-from tensorflow.keras.optimizers import Nadam
 
 
 class Model:
@@ -9,17 +6,17 @@ class Model:
   def __init__(self,
                seq_len,
                class_num,
-               dropout=0.3,
+               dropout_ratio=0.3,
                output_emb=100,
                rnn_unit=128,
                dense_unit=64):
 
-    self.seq_len      = seq_len
-    self.class_num    = class_num
-    self.dropout      = dropout
-    self.output_emb   = output_emb
-    self.rnn_unit     = rnn_unit
-    self.dense_unit   = dense_unit
+    self.seq_len       = seq_len
+    self.class_num     = class_num
+    self.dropout_ratio = dropout_ratio
+    self.output_emb    = output_emb
+    self.rnn_unit      = rnn_unit
+    self.dense_unit    = dense_unit
 
   def placeholders(self):
     with tf.name_scope('input'):
@@ -39,24 +36,27 @@ class Model:
                                            momentum=0.9)
     return optimizer.minimize(loss)
 
-  def infer(self, inputs):
-    embedding = tf.keras.layers.Embedding(input_dim=self.class_num + 1, output_dim=self.output_emb,
-                                          input_length=self.seq_len)(inputs)
+  def infer(self, inputs, is_training):
 
-    forward_pass = tf.keras.layers.Bidirectional(
-        tf.keras.layers.GRU(self.rnn_unit, return_sequences=True))(embedding)
-    forward_pass = tf.keras.layers.Dropout(self.dropout)(forward_pass)
+    x = tf.keras.layers.Embedding(input_dim=self.class_num + 1,
+                                  output_dim=self.output_emb,
+                                  input_length=self.seq_len
+                                  )(inputs)
 
-    forward_pass = tf.keras.layers.Bidirectional(
-        tf.keras.layers.GRU(self.rnn_unit, return_sequences=True))(forward_pass)
-    forward_pass = tf.keras.layers.Dropout(self.dropout)(forward_pass)
+    x = tf.keras.layers.Bidirectional(
+        tf.keras.layers.GRU(self.rnn_unit, return_sequences=True))(x)
+    x = tf.layers.dropout(x, rate=self.dropout_ratio, training=is_training)
 
-    forward_pass = tf.keras.layers.Bidirectional(
-        tf.keras.layers.GRU(self.rnn_unit))(forward_pass)
-    forward_pass = tf.keras.layers.Dropout(self.dropout)(forward_pass)
+    x = tf.keras.layers.Bidirectional(
+        tf.keras.layers.GRU(self.rnn_unit, return_sequences=True))(x)
+    x = tf.layers.dropout(x, rate=self.dropout_ratio, training=is_training)
 
-    forward_pass = tf.keras.layers.Dense(self.dense_unit)(forward_pass)
-    forward_pass = tf.keras.layers.LeakyReLU()(forward_pass)
-    outputs = tf.keras.layers.Dense(self.class_num, activation=None)(forward_pass)
+    x = tf.keras.layers.Bidirectional(
+        tf.keras.layers.GRU(self.rnn_unit))(x)
+    x = tf.layers.dropout(x, rate=self.dropout_ratio, training=is_training)
 
-    return outputs
+    x = tf.keras.layers.Dense(self.dense_unit)(x)
+    x = tf.keras.layers.LeakyReLU()(x)
+    x = tf.keras.layers.Dense(self.class_num, activation=None)(x)
+
+    return x 
