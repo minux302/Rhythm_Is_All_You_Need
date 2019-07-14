@@ -50,6 +50,7 @@ class Model:
   def loss(self, pred, labels):
     with tf.name_scope('loss'):
       loss = tf.losses.sparse_softmax_cross_entropy(labels, pred)
+      tf.summary.scalar('loss', loss)
     return loss
 
   def optimizer(self, loss):

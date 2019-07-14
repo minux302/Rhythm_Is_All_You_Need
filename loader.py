@@ -143,7 +143,7 @@ class MelodyandChordLoader:
       chord_list = []
       for chord_info in chord_symbols:
         # get upper code of oncode
-        # ToDo: use regular expression
+        # ToDo: Refactoring here
         if '|' in chord_info[0]:
           chord = chord_info[0].split('|')[0]
         elif ' ' in chord_info[0]:

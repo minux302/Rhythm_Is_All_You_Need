@@ -18,7 +18,8 @@ def split_dataset(dataset_path, train_valid_ratio = 0.2):
     if not(p_valid.exists()):
         p_valid.mkdir()
 
-    data_num = len(p_midi_list)
+    # data_num = len(p_midi_list)
+    data_num = 1000
     train_num = int(data_num * (1 - train_valid_ratio))
     for i in range(train_num):
         file_name = p_midi_list[i].name.split('.')[0]
@@ -35,5 +36,5 @@ def split_dataset(dataset_path, train_valid_ratio = 0.2):
         print(cmd)
 
 if __name__ == '__main__':
-    dataset_path = 'dataset_tmp' 
+    dataset_path = 'dataset_debug' 
     split_dataset(dataset_path)

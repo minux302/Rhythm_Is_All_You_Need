@@ -1,10 +1,8 @@
 import os
 import click
 import json
-from tqdm import tqdm
-
 import tensorflow as tf
-from tensorflow.keras.losses import sparse_categorical_crossentropy
+from tqdm import tqdm
 
 import config
 from model import Model
@@ -54,28 +52,41 @@ def train(id, reset):
     loss = model.loss(pred, label_pl)
     opt = model.optimizer(loss)
 
+    saver = tf.train.Saver()
     config_gpu = tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True))
+
     with tf.Session(config=config_gpu) as sess:
 
-      # init for train
+      # init
+      batch_song_iter_num = 0
       init_op = tf.global_variables_initializer()
       sess.run([init_op])
-      batch_song_num = train_loader.get_batch_song_num()
-      iter_num = 0
-      tqdm_bar = tqdm(total=train_loader.get_total_songs())
+
+      merged = tf.summary.merge_all()
+      train_writer = tf.summary.FileWriter(os.path.join(log_dir, id + '/train'), sess.graph)
+      valid_writer = tf.summary.FileWriter(os.path.join(log_dir, id + '/valid'))
+
+      train_batch_song_num = train_loader.get_batch_song_num()
+      # valid_batch_song_num = valid_loader.get_batch_song_num()
+      # tqdm_bar = tqdm(total=train_loader.get_total_songs())
 
       for epoch in range(config.EPOCHS):
 
         train_loader.shuffle_midi_list()
 
-        for i in range(0, batch_song_num):
+        # train
+        for batch_song_idx in range(0, train_batch_song_num):
 
-          tqdm_bar.update(config.BATCH_SONG_SIZE)
-          train_loader.generate_batch_buffer(i)
+          # tqdm_bar.update(config.BATCH_SONG_SIZE)
+
+          # select 'batch_song_num' songs from dataset
+          train_loader.generate_batch_buffer(batch_song_idx)
           batch_num = train_loader.get_batch_num()
 
-          for j in range(0, batch_num):
-            batch_input, batch_target = train_loader.get_batch(j)
+          for batch_idx in range(0, batch_num):
+
+            # create input data from selected songs
+            batch_input, batch_target = train_loader.get_batch(batch_idx) 
 
             feed_dict = {
                 input_pl: batch_input,
@@ -83,25 +94,33 @@ def train(id, reset):
             }
             _, _loss = sess.run([opt, loss], feed_dict)
 
-            iter_num += 1
-            # print("epochs {} | Steps {} | total loss : {}".format(epoch + 1, iter_num, _loss))
+          batch_song_iter_num += 1
+          loss_summary, summary = sess.run([loss, merged], feed_dict)  # summary for last batch
+          print("epoch: {}, song: {}/{}, Loss: {}".format(epoch + 1,
+                                                          batch_song_iter_num * config.BATCH_SONG_SIZE, 
+                                                          train_loader.get_total_songs(),
+                                                          loss_summary))
+          train_writer.add_summary(summary, batch_song_iter_num)
 
-        """
-        if config.VALIDATION_INTERVAL
-          for i in range(0, batch_song_num):
+        # valid
+        if batch_song_iter_num % config.VALIDATION_INTERVAL == 0:
 
-            valid_loader.generate_batch_buffer(i)
-            batch_num = valid_loader.get_batch_num()
+          # validate one batch only for time saving 
+          valid_loader.shuffle_midi_list()
+          valid_loader.generate_batch_buffer(0)
+          batch_input, batch_target = valid_loader.get_batch(0)
 
-            for j in range(0, batch_num):
-              batch_input, batch_target = valid_loader.get_batch(j)
+          feed_dict = {
+              input_pl: batch_input,
+              label_pl: batch_target,
+          }
 
-              feed_dict = {
-                  input_pl: batch_input,
-                  label_pl: batch_target,
-              }
-            _, _loss = sess.run([opt, loss], feed_dict)
-        """
+          _, summary = sess.run([loss, merged], feed_dict)
+          valid_writer.add_summary(summary, batch_song_iter_num)
+
+        # saver
+
+  print('train is finished !!')
 
 
 
