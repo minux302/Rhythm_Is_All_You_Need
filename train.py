@@ -1,6 +1,8 @@
 import os
 import click
 import json
+import time
+import datetime
 import tensorflow as tf
 
 import config
@@ -42,6 +44,7 @@ def train(id, reset):
                                       batch_song_size=config.BATCH_SONG_SIZE,
                                       batch_size=config.BATCH_SIZE)
 
+  start_time = time.time()
   with tf.Graph().as_default():
 
     # model build
@@ -70,9 +73,8 @@ def train(id, reset):
 
       for epoch in range(config.EPOCHS):
 
-        train_loader.shuffle_midi_list()
-
         # train
+        train_loader.shuffle_midi_list()
         for batch_song_idx in range(0, train_batch_song_num):
 
           # select 'batch_song_num' songs from dataset
@@ -122,6 +124,8 @@ def train(id, reset):
   valid_writer.close()
 
   print('train is finished !!')
+  td = datetime.timedelta(seconds=time.time() - start_time)
+  print("time: ", td)
 
 
 @click.command(context_settings=dict(help_option_names=['-h', '--help']))
