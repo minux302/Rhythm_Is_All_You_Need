@@ -2,7 +2,6 @@ import os
 import click
 import json
 import tensorflow as tf
-from tqdm import tqdm
 
 import config
 from model import Model
@@ -68,7 +67,6 @@ def train(id, reset):
 
       train_batch_song_num = train_loader.get_batch_song_num()
       # valid_batch_song_num = valid_loader.get_batch_song_num()
-      # tqdm_bar = tqdm(total=train_loader.get_total_songs())
 
       for epoch in range(config.EPOCHS):
 
@@ -76,8 +74,6 @@ def train(id, reset):
 
         # train
         for batch_song_idx in range(0, train_batch_song_num):
-
-          # tqdm_bar.update(config.BATCH_SONG_SIZE)
 
           # select 'batch_song_num' songs from dataset
           train_loader.generate_batch_buffer(batch_song_idx)
@@ -126,22 +122,22 @@ def train(id, reset):
 
 @click.command(context_settings=dict(help_option_names=['-h', '--help']))
 @click.option(
-    "-i",
-    "--id",
-    help="training id",
-    default="0",
-    required=False
+  "-i",
+  "--id",
+  help="training id",
+  default="0",
+  required=False
 )
 @click.option(
-    "-r",
-    "--reset",
-    help="remove directory for ckpt and tensorboard",
-    default="True",
-    required=False
+  "-r",
+  "--reset",
+  help="remove directory for ckpt and tensorboard",
+  default="True",
+  required=False
 )
 def main(id, reset):
-    train(id, reset)
+  train(id, reset)
 
 
 if __name__ == '__main__':
-    main()
+  main()
