@@ -92,7 +92,7 @@ class MelodyandChordLoader:
       if idx < self.seq_len:
         start_iterate = self.seq_len - idx - 1
         for i in range(start_iterate):
-          input_sample.append(self.class_num)
+          input_sample.append(self.class_num - 1)  # rest note class
 
       for i in range(start_iterate, self.seq_len):
         current_idx = idx - (self.seq_len - i - 1)
@@ -101,7 +101,7 @@ class MelodyandChordLoader:
       if idx + 1 < end:
         target_sample.append(time_note[idx + 1])
       else:
-        target_sample.append(self.class_num)
+        target_sample.append(self.class_num - 1)  # rest note class
 
       input_list.append(input_sample)
       target_list.append(target_sample)
@@ -175,7 +175,7 @@ class MelodyandChordLoader:
       for i in range(pianoroll_T.shape[0]):
         note = np.nonzero(pianoroll_T[i])[0]
         if len(note) == 0:
-          time_note_list.append(128)
+          time_note_list.append(self.class_num - 1)  # rest note class
         else:
           time_note_list.append(max(note))
 
