@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pretty_midi
 import pickle
@@ -32,26 +33,27 @@ class MelodyandChordLoader:
     self.total_songs       = len(p_midi_list)
     self.seq_len           = seq_len
     self.class_num         = class_num
+    self.rest_note_class   = class_num - 1
     self.batch_song_size   = batch_song_size
     self.batch_size        = batch_size
     self.fs                = fs
 
     self.batch_song_input  = np.empty((0, self.seq_len))
-    self.batch_song_target = np.empty((0, 1))
+    self.batch_song_target = np.empty((0))
     self.batch_idx_list    = np.array([])
 
   def generate_batch_buffer(self, i, shuffle=True):
 
     start_idx = i * self.batch_song_size
     self.batch_song_input  = np.empty((0, self.seq_len))
-    self.batch_song_target = np.empty((0, 1))
+    self.batch_song_target = np.empty((0))
 
     pianoroll_dict = self._generate_pianoroll_dict(start_idx)
     time_note_dict = self._generate_time_note_dict(pianoroll_dict)
 
     for key in list(time_note_dict.keys()):
       input_list, target_list = self._generate_input_and_target(time_note_dict[key])
-      self.batch_song_input   = np.append(self.batch_song_input, input_list, axis=0)
+      self.batch_song_input   = np.append(self.batch_song_input,  input_list,  axis=0)
       self.batch_song_target  = np.append(self.batch_song_target, target_list, axis=0)
 
     self.batch_idx_list = np.arange(start=0, stop=len(self.batch_song_input))
@@ -92,16 +94,21 @@ class MelodyandChordLoader:
       if idx < self.seq_len:
         start_iterate = self.seq_len - idx - 1
         for i in range(start_iterate):
-          input_sample.append(self.class_num - 1)  # rest note class
+          input_sample.append(self.rest_note_class)
 
       for i in range(start_iterate, self.seq_len):
         current_idx = idx - (self.seq_len - i - 1)
         input_sample.append(time_note[current_idx])
 
       if idx + 1 < end:
-        target_sample.append(time_note[idx + 1])
+        # target_sample.append(time_note[idx + 1])
+        target_sample = time_note[idx + 1]
       else:
-        target_sample.append(self.class_num - 1)  # rest note class
+        # target_sample.append(self.rest_note_class)
+        target_sample = self.rest_note_class
+
+      # if target_sample == self.rest_note_class:
+      #   continue
 
       input_list.append(input_sample)
       target_list.append(target_sample)
@@ -175,7 +182,7 @@ class MelodyandChordLoader:
       for i in range(pianoroll_T.shape[0]):
         note = np.nonzero(pianoroll_T[i])[0]
         if len(note) == 0:
-          time_note_list.append(self.class_num - 1)  # rest note class
+          time_note_list.append(self.rest_note_class) 
         else:
           time_note_list.append(max(note))
 
@@ -214,16 +221,17 @@ class MelodyandChordLoader:
 
 if __name__ == '__main__':
 
-  save_path = './debug_dataset'
+  save_path = './dataset_maestro'
   p_midi_list = get_p_extension_list(save_path, 'mid')
 
-  seq_len = 50
-  class_num = 128
+  seq_len = 20
+  class_num = 128 + 1
   batch_song_size = 3
-  batch_size = 20
-  fs = 5  # frame_per_second
+  batch_size = 3
+  fs = 2  # frame_per_second
 
-  loader = MelodyandChordLoader(p_midi_list=p_midi_list,
+  p_midi_list_train = get_p_extension_list(os.path.join(save_path, 'train'), 'mid')
+  loader = MelodyandChordLoader(p_midi_list=p_midi_list_train,
                                 seq_len=seq_len,
                                 class_num=class_num,
                                 batch_song_size=batch_song_size,
@@ -233,7 +241,7 @@ if __name__ == '__main__':
   loader.shuffle_midi_list()
   batch_song_num = loader.get_batch_song_num()
 
-  for i in range(0, batch_song_num):
+  for i in range(0, 3):
     print("{} ======================= ".format(i))
     loader.generate_batch_buffer(i)
 
@@ -242,4 +250,12 @@ if __name__ == '__main__':
     for j in range(0, batch_num):
       batch_input, batch_target = loader.get_batch(j)
 
-      print(batch_target.shape)
+      # print(batch_target.shape)
+      # print(batch_input)
+ 
+      for sample_i in range(batch_input.shape[0]):
+        sample = []
+        for sample_b_i in batch_input[sample_i]:
+          sample.append(int(sample_b_i))
+        print(sample)
+

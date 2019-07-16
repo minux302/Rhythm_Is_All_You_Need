@@ -1,15 +1,14 @@
 import tensorflow as tf
 
-
 class Model:
 
   def __init__(self,
                seq_len,
                class_num,
-               dropout_ratio=0.3,
-               output_emb=100,
+               dropout_ratio=0.5,
+               output_emb=32,
                rnn_unit=128,
-               dense_unit=64):
+               dense_unit=32):
 
     self.seq_len       = seq_len
     self.class_num     = class_num
@@ -20,43 +19,36 @@ class Model:
 
   def placeholders(self):
     with tf.name_scope('input'):
-      image_pl = tf.placeholder(tf.float32, (None, self.seq_len), name="input")
-      label_pl = tf.placeholder(tf.int32,   (None, 1),            name="label")
+      input_pl  = tf.placeholder(tf.float32, (None, self.seq_len), name="input")
+      target_pl = tf.placeholder(tf.int32,   (None),               name="label")
 
-    return image_pl, label_pl
+    return input_pl, target_pl
 
   def loss(self, pred, labels):
     with tf.name_scope('loss'):
-      loss = tf.losses.sparse_softmax_cross_entropy(labels, pred)
+      loss = tf.losses.sparse_softmax_cross_entropy(labels=labels, logits=pred)
       tf.summary.scalar('loss', loss)
     return loss
 
   def optimizer(self, loss):
-    optimizer = tf.train.MomentumOptimizer(learning_rate=0.01,
-                                           momentum=0.9)
+    optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
     return optimizer.minimize(loss)
 
-  def infer(self, inputs, is_training):
+  def infer(self, x, is_training):
 
-    x = tf.keras.layers.Embedding(input_dim=self.class_num + 1,
+    x = tf.keras.layers.Embedding(input_dim=self.class_num,
                                   output_dim=self.output_emb,
                                   input_length=self.seq_len
-                                  )(inputs)
+                                  )(x)
 
+    """
     x = tf.keras.layers.Bidirectional(
         tf.keras.layers.GRU(self.rnn_unit, return_sequences=True))(x)
     x = tf.layers.dropout(x, rate=self.dropout_ratio, training=is_training)
-
-    x = tf.keras.layers.Bidirectional(
-        tf.keras.layers.GRU(self.rnn_unit, return_sequences=True))(x)
-    x = tf.layers.dropout(x, rate=self.dropout_ratio, training=is_training)
+    """
 
     x = tf.keras.layers.Bidirectional(
         tf.keras.layers.GRU(self.rnn_unit))(x)
-    x = tf.layers.dropout(x, rate=self.dropout_ratio, training=is_training)
-
-    x = tf.keras.layers.Dense(self.dense_unit)(x)
-    x = tf.keras.layers.LeakyReLU()(x)
     x = tf.keras.layers.Dense(self.class_num, activation=None)(x)
 
     return x 
