@@ -1,3 +1,5 @@
+# code is based on https://github.com/wayne391/lead-sheet-dataset
+
 import os
 import pretty_midi
 import pickle

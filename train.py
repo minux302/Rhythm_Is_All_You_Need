@@ -9,6 +9,7 @@ import config
 from model import Model
 from loader import MelodyandChordLoader, get_p_extension_list
 
+import numpy as np 
 
 def train(id, reset):
 
@@ -20,7 +21,7 @@ def train(id, reset):
   if not(os.path.exists(save_dir)):
     os.system('mkdir ' + save_dir)
 
-  log_id_dir  = os.path.join(log_dir, id)
+  log_id_dir  = os.path.join(log_dir,  id)
   save_id_dir = os.path.join(save_dir, id)
   if reset:
     if os.path.exists(log_id_dir):
@@ -48,12 +49,12 @@ def train(id, reset):
   with tf.Graph().as_default():
 
     # model build
-    model              = Model(config.SEQ_LEN, config.CLASS_NUM)
-    input_pl, label_pl = model.placeholders()
-    is_training_pl     = tf.placeholder(tf.bool, name="is_training")
-    pred               = model.infer(input_pl, is_training_pl)
-    loss               = model.loss(pred, label_pl)
-    opt                = model.optimizer(loss)
+    model               = Model(config.SEQ_LEN, config.CLASS_NUM)
+    input_pl, target_pl = model.placeholders()
+    is_training_pl      = tf.placeholder(tf.bool, name="is_training")
+    pred                = model.infer(input_pl, is_training_pl)
+    loss                = model.loss(pred, target_pl)
+    opt                 = model.optimizer(loss)
 
     saver = tf.train.Saver()
     config_gpu = tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True))
@@ -87,12 +88,15 @@ def train(id, reset):
             # create input data from selected songs
             batch_input, batch_target = train_loader.get_batch(batch_idx) 
 
+            if batch_target.shape[0] != config.BATCH_SIZE:
+              continue
+
             feed_dict = {
-                input_pl: batch_input,
-                label_pl: batch_target,
+                input_pl      : batch_input,
+                target_pl     : batch_target,
                 is_training_pl: True
             }
-            _, _loss = sess.run([opt, loss], feed_dict)
+            _, _loss, _pred = sess.run([opt, loss, pred], feed_dict)
 
           batch_song_iter_num += 1
           loss_summary, summary = sess.run([loss, merged], feed_dict)  # summary for last batch
@@ -111,15 +115,15 @@ def train(id, reset):
             batch_input, batch_target = valid_loader.get_batch(0)
 
             feed_dict = {
-                input_pl: batch_input,
-                label_pl: batch_target,
+                input_pl      : batch_input,
+                target_pl     : batch_target,
                 is_training_pl: False
             }
-
             _, summary = sess.run([loss, merged], feed_dict)
             valid_writer.add_summary(summary, batch_song_iter_num)
 
         # save
+        print("save")
         save_path = os.path.join(save_id_dir, id + '_' + str(epoch))
         saver.save(sess, save_path)
 
