@@ -48,8 +48,9 @@ class MelodyandChordLoader:
     self.batch_song_input  = np.empty((0, self.seq_len))
     self.batch_song_target = np.empty((0))
 
-    note_data_dict = self._generate_note_data_dict(start_idx)
-    # chord_data_dict = self._generate_chord_dict(self, start_idx):
+    note_data_dict  = self._generate_note_data_dict(start_idx)
+    chord_data_dict = self._generate_chord_data_dict(start_idx)
+    note_data_dict, chord_data_dict = self._align_dicts(note_data_dict, chord_data_dict)
 
     for key in list(note_data_dict.keys()):
       input_list, target_list = self._generate_input_and_target(note_data_dict[key])
@@ -167,7 +168,7 @@ class MelodyandChordLoader:
       except Exception as e:
         print(e)
         print("broken file : {}".format(str(p_midi)))
-        pass
+        continue
 
       chord_list = []
       for chord_info in chord_symbols:
@@ -185,45 +186,43 @@ class MelodyandChordLoader:
       chord_series_list = []
       for i in range(len(chord_symbols)):
         end_time_sec = chord_symbols[i][2]
-        while (counter < int(end_time_sec * fs)):
+        while (counter < int(end_time_sec * self.fs)):
           chord_series_list.append(chord_list[i])
           counter += 1
       chord_data_dict[name_num] = chord_series_list
 
     return chord_data_dict
 
-  def _align_dicts(self, pianoroll_dict, notes_chord_dict):
+  def _align_dicts(self, note_data_dict, chord_data_dict):
 
     # get key that has .mid and .chord
-    pianoroll_keys   = list(pianoroll_dict.keys())
-    notes_chord_keys = list(notes_chord_dict.keys())
-    common_keys      = list(set(pianoroll_keys) & set(notes_chord_keys))
+    note_data_keys   = list(note_data_dict.keys())
+    chord_data_keys  = list(chord_data_dict.keys())
+    common_keys      = list(set(note_data_keys) & set(chord_data_keys))
 
-    # rm abundant item
-    rm_list = list(set(pianoroll_keys)   - set(common_keys))
+    # rm abundant item(song)
+    rm_list = list(set(note_data_keys)   - set(common_keys))
     for i in rm_list:
-      del pianoroll_dict[i]
-    rm_list = list(set(notes_chord_keys) - set(common_keys))
+      del note_data_dict[i]
+    rm_list = list(set(chord_data_keys)  - set(common_keys))
     for i in rm_list:
-      del notes_chord_dict[i]
+      del chord_data_dict[i]
 
-    # align length of value
+    # align length
     for key in common_keys:
-      pianoroll_dict_len   = pianoroll_dict[key].shape[1]
-      notes_chord_dict_len = len(notes_chord_dict[key])
-      if pianoroll_dict_len >= notes_chord_dict_len:
-        # Todo: Refine
-        pianoroll_dict[key]   = pianoroll_dict[key].T[:notes_chord_dict_len]
-        pianoroll_dict[key]   = pianoroll_dict[key].T
+      note_data_len   = len(note_data_dict[key])
+      chord_data_len  = len(chord_data_dict[key])
+      if note_data_len >= chord_data_len:
+        note_data_dict[key]   = note_data_dict[key][:chord_data_len]
       else:
-        notes_chord_dict[key] = notes_chord_dict[key][:pianoroll_dict_len]
+        chord_data_dict[key] = chord_data_dict[key][:note_data_len]
 
-    return pianoroll_dict, notes_chord_dict
+    return note_data_dict, chord_data_dict
 
 
 if __name__ == '__main__':
 
-  save_path = './dataset_maestro'
+  save_path = './dataset_debug'
   p_midi_list = get_p_extension_list(save_path, 'mid')
 
   seq_len = 20
@@ -248,16 +247,17 @@ if __name__ == '__main__':
     loader.generate_batch_buffer(i)
 
     batch_num = loader.get_batch_num()
-    print(batch_num)
     for j in range(0, batch_num):
       batch_input, batch_target = loader.get_batch(j)
 
       # print(batch_target.shape)
       # print(batch_input)
  
+      """
       for sample_i in range(batch_input.shape[0]):
         sample = []
         for sample_b_i in batch_input[sample_i]:
           sample.append(int(sample_b_i))
         print(sample)
+      """
 
