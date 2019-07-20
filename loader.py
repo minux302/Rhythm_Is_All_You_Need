@@ -48,11 +48,11 @@ class MelodyandChordLoader:
     self.batch_song_input  = np.empty((0, self.seq_len))
     self.batch_song_target = np.empty((0))
 
-    pianoroll_dict = self._generate_pianoroll_dict(start_idx)
-    data_dict      = self._preprocess_pianoroll_dict(pianoroll_dict)
+    note_data_dict = self._generate_note_data_dict(start_idx)
+    # chord_data_dict = self._generate_chord_dict(self, start_idx):
 
-    for key in list(data_dict.keys()):
-      input_list, target_list = self._generate_input_and_target(data_dict[key])
+    for key in list(note_data_dict.keys()):
+      input_list, target_list = self._generate_input_and_target(note_data_dict[key])
       self.batch_song_input   = np.append(self.batch_song_input,  input_list,  axis=0)
       self.batch_song_target  = np.append(self.batch_song_target, target_list, axis=0)
 
@@ -110,7 +110,27 @@ class MelodyandChordLoader:
 
     return np.array(input_list), np.array(target_list)
 
-  def _generate_pianoroll_dict(self, start_idx):
+  def _preprocess_pianoroll_dict(self, pianoroll_dict):
+    note_data_dict = {}  
+
+    for name_num in pianoroll_dict.keys():
+      pianoroll      = pianoroll_dict[name_num]
+      pianoroll_T    = pianoroll.T
+      note_data = []
+
+      # add top note idx
+      for i in range(pianoroll_T.shape[0]):
+        note = np.nonzero(pianoroll_T[i])[0]
+        if len(note) == 0:
+          note_data.append(self.rest_note_class) 
+        else:
+          note_data.append(max(note))
+
+      note_data_dict[name_num] = note_data
+
+    return note_data_dict
+
+  def _generate_note_data_dict(self, start_idx):
 
     pianoroll_dict = {}  # key: file_num, value: pianoroll
     idx_list = range(start_idx, min(start_idx + self.batch_song_size, len(self.p_midi_list)))
@@ -128,19 +148,26 @@ class MelodyandChordLoader:
         print("broken file : {}".format(str(p_midi)))
         pass
 
-    return pianoroll_dict
+    note_data_dict = self._preprocess_pianoroll_dict(pianoroll_dict)
 
-  def _generate_notes_chord_dict(self, start_idx):
+    return note_data_dict
 
-    notes_chord_dict = {}  # key: file_num, value: notes_chord
+  def _generate_chord_data_dict(self, start_idx):
+
+    chord_data_dict = {}  # key: file_num, value: chords
     idx_list = range(start_idx, min(start_idx + self.batch_song_size, len(self.p_midi_list)))
 
     for i in idx_list:
       p_midi   = self.p_midi_list[i]
       name_num = int(p_midi.name.split('.')[0])  # ToDo: Rethink about data name
       p_chord  = p_midi.parent / (str(name_num) + '.chord')
-      with open(str(p_chord), "rb") as f:
-        chord_symbols = pickle.load(f)  # (chord_num, [chord, start, end])
+      try:
+        with open(str(p_chord), "rb") as f:
+          chord_symbols = pickle.load(f)  # (chord_num, [chord, start, end])
+      except Exception as e:
+        print(e)
+        print("broken file : {}".format(str(p_midi)))
+        pass
 
       chord_list = []
       for chord_info in chord_symbols:
@@ -155,35 +182,15 @@ class MelodyandChordLoader:
         chord_list.append(chord)
 
       counter = 0
-      notes_chord = []
+      chord_series_list = []
       for i in range(len(chord_symbols)):
         end_time_sec = chord_symbols[i][2]
         while (counter < int(end_time_sec * fs)):
-          notes_chord.append(chord_list[i])
+          chord_series_list.append(chord_list[i])
           counter += 1
-      notes_chord_dict[name_num] = notes_chord
+      chord_data_dict[name_num] = chord_series_list
 
-    return notes_chord_dict
-
-  def _preprocess_pianoroll_dict(self, pianoroll_dict):
-    processed_pianoroll_dict = {}  
-
-    for name_num in pianoroll_dict.keys():
-      pianoroll      = pianoroll_dict[name_num]
-      pianoroll_T    = pianoroll.T
-      time_note_list = []
-
-      # add top note idx
-      for i in range(pianoroll_T.shape[0]):
-        note = np.nonzero(pianoroll_T[i])[0]
-        if len(note) == 0:
-          time_note_list.append(self.rest_note_class) 
-        else:
-          time_note_list.append(max(note))
-
-      processed_pianoroll_dict[name_num] = time_note_list
-
-    return processed_pianoroll_dict
+    return chord_data_dict
 
   def _align_dicts(self, pianoroll_dict, notes_chord_dict):
 
