@@ -1,5 +1,6 @@
 import click
 import numpy as np
+import random
 import pretty_midi
 import tensorflow as tf
 import time
@@ -68,7 +69,7 @@ def create_sample():
 
   generate  = generate_from_random(config.CLASS_NUM, seq_len=config.SEQ_LEN) 
   # generate =  [67, 67, 128, 128,  71,  67,  67,  71,  67,  67]
-  generate = [62, 74, 74, 128, 91, 72, 128, 128, 71, 57, 128, 87, 84, 69, 69, 68, 128, 68, 68, 68]
+  # generate = [62, 74, 74, 128, 91, 72, 128, 128, 71, 57, 128, 87, 84, 69, 69, 68, 128, 68, 68, 68]
 
   with tf.Graph().as_default():
 
@@ -83,12 +84,15 @@ def create_sample():
 
     with tf.Session(config=config_gpu) as sess:
 
-      saver.restore(sess, 'save/0/0_99')
+      saver.restore(sess, 'save/0/0_270')
+      # saver.restore(sess, 'save/save_dataset_tmp_0716/0_99')
 
-      max_generated=100
+
+      max_generated=1000
       for i in range(max_generated):
         test_input = np.array([generate[i:i+config.SEQ_LEN]])
         print(test_input)
+        
         feed_dict = {
           input_pl: test_input,
           label_pl: [1]
@@ -99,7 +103,12 @@ def create_sample():
 
         # idx = np.random.randint(2)
         # pred_note = output_argsort[-idx]
-        pred_note = output_argsort[-1]
+
+        if random.uniform(0,1) > 0.3:
+          pred_note = output_argsort[-1]
+        else:
+          pred_note = 128
+        # pred_note = output_argsort[-1]
         generate.append(pred_note)
 
 

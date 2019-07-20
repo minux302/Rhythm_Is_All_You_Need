@@ -41,14 +41,13 @@ class Model:
                                   input_length=self.seq_len
                                   )(x)
 
-    """
     x = tf.keras.layers.Bidirectional(
         tf.keras.layers.GRU(self.rnn_unit, return_sequences=True))(x)
     x = tf.layers.dropout(x, rate=self.dropout_ratio, training=is_training)
-    """
 
     x = tf.keras.layers.Bidirectional(
         tf.keras.layers.GRU(self.rnn_unit))(x)
+
     x = tf.keras.layers.Dense(self.class_num, activation=None)(x)
 
     return x 

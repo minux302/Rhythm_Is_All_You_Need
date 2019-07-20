@@ -49,10 +49,10 @@ class MelodyandChordLoader:
     self.batch_song_target = np.empty((0))
 
     pianoroll_dict = self._generate_pianoroll_dict(start_idx)
-    time_note_dict = self._generate_time_note_dict(pianoroll_dict)
+    data_dict      = self._preprocess_pianoroll_dict(pianoroll_dict)
 
-    for key in list(time_note_dict.keys()):
-      input_list, target_list = self._generate_input_and_target(time_note_dict[key])
+    for key in list(data_dict.keys()):
+      input_list, target_list = self._generate_input_and_target(data_dict[key])
       self.batch_song_input   = np.append(self.batch_song_input,  input_list,  axis=0)
       self.batch_song_target  = np.append(self.batch_song_target, target_list, axis=0)
 
@@ -83,8 +83,8 @@ class MelodyandChordLoader:
     shuffle(self.p_midi_list)
     return
 
-  def _generate_input_and_target(self, time_note):
-    start, end = 0, len(time_note)
+  def _generate_input_and_target(self, data):
+    start, end = 0, len(data)
     input_list, target_list = [], []
 
     for idx in range(start, end):
@@ -98,17 +98,12 @@ class MelodyandChordLoader:
 
       for i in range(start_iterate, self.seq_len):
         current_idx = idx - (self.seq_len - i - 1)
-        input_sample.append(time_note[current_idx])
+        input_sample.append(data[current_idx])
 
       if idx + 1 < end:
-        # target_sample.append(time_note[idx + 1])
-        target_sample = time_note[idx + 1]
+        target_sample = data[idx + 1]
       else:
-        # target_sample.append(self.rest_note_class)
         target_sample = self.rest_note_class
-
-      # if target_sample == self.rest_note_class:
-      #   continue
 
       input_list.append(input_sample)
       target_list.append(target_sample)
@@ -170,8 +165,8 @@ class MelodyandChordLoader:
 
     return notes_chord_dict
 
-  def _generate_time_note_dict(self, pianoroll_dict):
-    time_note_dict = {}  # key: file_num, value: time_note_dict
+  def _preprocess_pianoroll_dict(self, pianoroll_dict):
+    processed_pianoroll_dict = {}  
 
     for name_num in pianoroll_dict.keys():
       pianoroll      = pianoroll_dict[name_num]
@@ -186,9 +181,9 @@ class MelodyandChordLoader:
         else:
           time_note_list.append(max(note))
 
-      time_note_dict[name_num] = time_note_list
+      processed_pianoroll_dict[name_num] = time_note_list
 
-    return time_note_dict
+    return processed_pianoroll_dict
 
   def _align_dicts(self, pianoroll_dict, notes_chord_dict):
 

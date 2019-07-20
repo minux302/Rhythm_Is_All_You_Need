@@ -73,9 +73,8 @@ def train(id, reset):
       train_batch_song_num = train_loader.get_batch_song_num()
       # valid_batch_song_num = valid_loader.get_batch_song_num()
 
-      for epoch in range(config.EPOCHS):
+      for epoch in range(1, config.EPOCHS + 1):
 
-        # train
         train_loader.shuffle_midi_list()
         for batch_song_idx in range(0, train_batch_song_num):
 
@@ -88,9 +87,6 @@ def train(id, reset):
             # create input data from selected songs
             batch_input, batch_target = train_loader.get_batch(batch_idx) 
 
-            if batch_target.shape[0] != config.BATCH_SIZE:
-              continue
-
             feed_dict = {
                 input_pl      : batch_input,
                 target_pl     : batch_target,
@@ -99,14 +95,15 @@ def train(id, reset):
             _, _loss, _pred = sess.run([opt, loss, pred], feed_dict)
 
           batch_song_iter_num += 1
-          loss_summary, summary = sess.run([loss, merged], feed_dict)  # summary for last batch
-          train_writer.add_summary(summary, batch_song_iter_num)
-          print("epoch: {}, song: {}/{}, Loss: {}".format(epoch + 1,
-                                                          batch_song_idx * config.BATCH_SONG_SIZE, 
+          print("epoch: {}, song: {}/{}, Loss: {}".format(epoch,
+                                                          (batch_song_idx + 1) * config.BATCH_SONG_SIZE, 
                                                           train_loader.get_total_songs(),
-                                                          loss_summary))
+                                                          _loss))
 
-          # valid
+          if batch_song_iter_num % config.SUMMARY_INTERVAL == 0:
+            _loss, summary = sess.run([loss, merged], feed_dict)  # summary for last batch
+            train_writer.add_summary(summary, batch_song_iter_num)
+
           if batch_song_iter_num % config.VALIDATION_INTERVAL == 0:
 
             # validate one batch only for time saving 
@@ -122,8 +119,7 @@ def train(id, reset):
             _, summary = sess.run([loss, merged], feed_dict)
             valid_writer.add_summary(summary, batch_song_iter_num)
 
-        # save
-        print("save")
+        print("save ckpt")
         save_path = os.path.join(save_id_dir, id + '_' + str(epoch))
         saver.save(sess, save_path)
 
