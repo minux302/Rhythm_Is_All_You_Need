@@ -61,7 +61,8 @@ class MelodyandChordLoader:
     if shuffle:
       np.random.shuffle(self.batch_idx_list)
 
-    return
+    # tmp
+    return chord_data_dict
 
   def get_batch(self, i):
     idx = i * self.batch_size
@@ -112,7 +113,7 @@ class MelodyandChordLoader:
     return np.array(input_list), np.array(target_list)
 
   def _preprocess_pianoroll_dict(self, pianoroll_dict):
-    note_data_dict = {}  
+    note_data_dict = {}   # key: file_num, value: note series
 
     for name_num in pianoroll_dict.keys():
       pianoroll      = pianoroll_dict[name_num]
@@ -147,15 +148,57 @@ class MelodyandChordLoader:
       except Exception as e:
         print(e)
         print("broken file : {}".format(str(p_midi)))
-        pass
+        continue
 
     note_data_dict = self._preprocess_pianoroll_dict(pianoroll_dict)
 
     return note_data_dict
 
+  def _preprocess_chord_symbols_dict(self, chord_symbols_dict):
+
+    chord_data_dict = {}  # key: file_num, value: chord series
+
+    for name_num in chord_symbols_dict.keys():
+
+      chord_symbols = chord_symbols_dict[name_num]
+
+      # preprocess for chord notation
+      chord_list = []
+      for chord_info in chord_symbols:
+
+        if '|' in chord_info[0]: # get upper code of oncode
+          chord = chord_info[0].split('|')[0]
+          chord = chord.replace(" ", "")
+        elif ' ' in chord_info[0]: # rm sus4
+          chord = chord_info[0].split(' ')[0]
+        else:
+          chord = chord_info[0]
+
+        # rm tention (9, 11, 13) notation, leaves 7th exept for ø
+        chord = ''.join(c for c in chord if not(c.isdigit() and c != '7'))
+        chord = chord.replace('ø7', 'ø')
+
+        # align chord notation
+        chord = chord[0].upper() + chord[1:]
+
+        chord_list.append(chord)
+
+      # convert chord_symbols to chord series
+      counter = 0
+      chord_series_list = []
+      for i in range(len(chord_symbols)):
+        end_time_sec = chord_symbols[i][2]
+        while (counter < int(end_time_sec * self.fs)):
+          chord_series_list.append(chord_list[i])
+          counter += 1
+
+      chord_data_dict[name_num] = chord_series_list
+
+    return chord_data_dict
+
   def _generate_chord_data_dict(self, start_idx):
 
-    chord_data_dict = {}  # key: file_num, value: chords
+    chord_symbols_dict = {}  # key: file_num, value: chord_symbols
     idx_list = range(start_idx, min(start_idx + self.batch_song_size, len(self.p_midi_list)))
 
     for i in idx_list:
@@ -165,31 +208,13 @@ class MelodyandChordLoader:
       try:
         with open(str(p_chord), "rb") as f:
           chord_symbols = pickle.load(f)  # (chord_num, [chord, start, end])
+        chord_symbols_dict[name_num] = chord_symbols
       except Exception as e:
         print(e)
         print("broken file : {}".format(str(p_midi)))
         continue
 
-      chord_list = []
-      for chord_info in chord_symbols:
-        # get upper code of oncode
-        # ToDo: Refactoring here
-        if '|' in chord_info[0]:
-          chord = chord_info[0].split('|')[0]
-        elif ' ' in chord_info[0]:
-          chord = chord_info[0].split(' ')[0]
-        else:
-          chord = chord_info[0]
-        chord_list.append(chord)
-
-      counter = 0
-      chord_series_list = []
-      for i in range(len(chord_symbols)):
-        end_time_sec = chord_symbols[i][2]
-        while (counter < int(end_time_sec * self.fs)):
-          chord_series_list.append(chord_list[i])
-          counter += 1
-      chord_data_dict[name_num] = chord_series_list
+    chord_data_dict = self._preprocess_chord_symbols_dict(chord_symbols_dict)
 
     return chord_data_dict
 
@@ -212,6 +237,11 @@ class MelodyandChordLoader:
     for key in common_keys:
       note_data_len   = len(note_data_dict[key])
       chord_data_len  = len(chord_data_dict[key])
+
+      if note_data_len == 0 or chord_data_len == 0:
+        del note_data_dict[key]
+        del chord_data_dict[key]
+        continue
       if note_data_len >= chord_data_len:
         note_data_dict[key]   = note_data_dict[key][:chord_data_len]
       else:
@@ -227,7 +257,7 @@ if __name__ == '__main__':
 
   seq_len = 20
   class_num = 128 + 1
-  batch_song_size = 3
+  batch_song_size = 1 
   batch_size = 3
   fs = 2  # frame_per_second
 
@@ -242,22 +272,17 @@ if __name__ == '__main__':
   loader.shuffle_midi_list()
   batch_song_num = loader.get_batch_song_num()
 
-  for i in range(0, 3):
-    print("{} ======================= ".format(i))
-    loader.generate_batch_buffer(i)
+  chord_dict = {}
 
-    batch_num = loader.get_batch_num()
-    for j in range(0, batch_num):
-      batch_input, batch_target = loader.get_batch(j)
+  for i in range(0, batch_song_num):
+    # print("{} ====================================================== ".format(i))
+    note_chord_dict = loader.generate_batch_buffer(i)
 
-      # print(batch_target.shape)
-      # print(batch_input)
- 
-      """
-      for sample_i in range(batch_input.shape[0]):
-        sample = []
-        for sample_b_i in batch_input[sample_i]:
-          sample.append(int(sample_b_i))
-        print(sample)
-      """
+    for key in list(note_chord_dict.keys()):
+      for chord in note_chord_dict[key]:
+        chord_dict[chord] = 0
+
+  print(chord_dict.keys())
+  print(len(list(chord_dict.keys())))
+
 
