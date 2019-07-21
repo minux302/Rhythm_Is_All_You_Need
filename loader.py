@@ -4,7 +4,7 @@ import pretty_midi
 import pickle
 import math
 from pathlib import Path
-from random import seed, shuffle
+from random import seed, shuffle, randint
 
 
 seed(666)
@@ -20,7 +20,8 @@ def get_p_extension_list(folder, extension='mid'):
 class Chord2Id:
 
   def __init__(self):
-    self.chord_list = self._generate_chord_list()
+    self.chord_list      = self._generate_chord_list()
+    self.chord_class_num = len(self.chord_list)
 
   def _generate_chord_list(self):
     chord_list = []
@@ -37,6 +38,9 @@ class Chord2Id:
   def get_id(self, chord):
     return self.chord_list.index(chord)
 
+  def get_class_num(self):
+    return self.chord_class_num
+
 
 class MelodyandChordLoader:
 
@@ -50,54 +54,61 @@ class MelodyandChordLoader:
 
     assert len(p_midi_list) >= batch_song_size, "p_midi_lsit must be longer than batch_song_size"
 
-    self.p_midi_list       = p_midi_list
-    self.total_songs       = len(p_midi_list)
-    self.seq_len           = seq_len
-    self.class_num         = class_num
-    self.rest_note_class   = class_num - 1
-    self.batch_song_size   = batch_song_size
-    self.batch_size        = batch_size
-    self.fs                = fs
+    self.p_midi_list     = p_midi_list
+    self.total_songs     = len(p_midi_list)
+    self.seq_len         = seq_len
+    self.class_num       = class_num
+    self.rest_note_class = class_num - 1
+    self.batch_song_size = batch_song_size
+    self.batch_size      = batch_size
+    self.fs              = fs
 
-    self.batch_song_input  = np.empty((0, self.seq_len))
-    self.batch_song_target = np.empty((0))
-    self.batch_idx_list    = np.array([])
+    self.batch_song_input_note   = np.empty((0, self.seq_len))
+    self.batch_song_input_chord  = np.empty((0, self.seq_len))
+    self.batch_song_target_note  = np.empty((0))
+    self.batch_idx_list          = np.array([])
 
-  def generate_batch_buffer(self, i, shuffle=True):
+    self.chord2id        = Chord2Id()
+    self.chord_class_num = self.chord2id.get_class_num()
+
+  def generate_batch_buffer(self, i, shuffle=False):
 
     start_idx = i * self.batch_song_size
-    self.batch_song_input  = np.empty((0, self.seq_len))
-    self.batch_song_target = np.empty((0))
+    self.batch_song_input_note  = np.empty((0, self.seq_len))
+    self.batch_song_input_chord = np.empty((0, self.seq_len))
+    self.batch_song_target_note = np.empty((0))
 
     note_data_dict  = self._generate_note_data_dict(start_idx)
     chord_data_dict = self._generate_chord_data_dict(start_idx)
     note_data_dict, chord_data_dict = self._align_dicts(note_data_dict, chord_data_dict)
 
     for key in list(note_data_dict.keys()):
-      input_list, target_list = self._generate_input_and_target(note_data_dict[key])
-      self.batch_song_input   = np.append(self.batch_song_input,  input_list,  axis=0)
-      self.batch_song_target  = np.append(self.batch_song_target, target_list, axis=0)
+      input_note_list, input_chord_list, target_note_list \
+        = self._generate_input_and_target(note_data_dict[key], chord_data_dict[key])
+      self.batch_song_input_note  = np.append(self.batch_song_input_note,  input_note_list,  axis=0)
+      self.batch_song_input_chord = np.append(self.batch_song_input_chord, input_chord_list, axis=0)
+      self.batch_song_target_note = np.append(self.batch_song_target_note, target_note_list, axis=0)
 
-    self.batch_idx_list = np.arange(start=0, stop=len(self.batch_song_input))
+    self.batch_idx_list = np.arange(start=0, stop=len(self.batch_song_input_note))
     if shuffle:
       np.random.shuffle(self.batch_idx_list)
 
-    return note_data_dict, chord_data_dict
-    # return 
+    return 
 
   def get_batch(self, i):
     idx = i * self.batch_size
     current_idx  = self.batch_idx_list[idx: idx + self.batch_size]
-    batch_input  = self.batch_song_input[current_idx]
-    batch_target = self.batch_song_target[current_idx]
+    batch_input_note   = self.batch_song_input_note[current_idx]
+    batch_input_chord  = self.batch_song_input_chord[current_idx]
+    batch_target_note  = self.batch_song_target_note[current_idx]
 
-    return batch_input, batch_target
+    return batch_input_note, batch_input_chord, batch_target_note
 
   def get_batch_song_num(self):
     return math.ceil(self.total_songs / self.batch_song_size)
 
   def get_batch_num(self):
-    return math.ceil(len(self.batch_song_input) / self.batch_size)
+    return math.ceil(len(self.batch_song_input_note) / self.batch_size)
 
   def get_total_songs(self):
     return self.total_songs
@@ -106,32 +117,41 @@ class MelodyandChordLoader:
     shuffle(self.p_midi_list)
     return
 
-  def _generate_input_and_target(self, data):
-    start, end = 0, len(data)
-    input_list, target_list = [], []
+  def _generate_input_and_target(self, note_data, chord_data):
+    start, end = 0, len(note_data) - 1
+    input_note_list  = []
+    input_chord_list = []
+    target_note_list = []
 
     for idx in range(start, end):
-      input_sample, target_sample = [], []
+      input_note_sample  = []
+      input_chord_sample  = []
       start_iterate = 0
 
       if idx < self.seq_len:
         start_iterate = self.seq_len - idx - 1
         for i in range(start_iterate):
-          input_sample.append(self.rest_note_class)
+          # input_note_sample.append(self.rest_note_class) # Todo Rethink
+          input_note_sample.append(randint(0, self.rest_note_class))
+          if i < start_iterate - 1:
+            # input_chord_sample.append('tmp')  # Todo Rethink
+            input_chord_sample.append(randint(0, self.chord_class_num - 1))
+          else:
+            input_chord_sample.append(chord_data[0])
 
       for i in range(start_iterate, self.seq_len):
         current_idx = idx - (self.seq_len - i - 1)
-        input_sample.append(data[current_idx])
+        input_note_sample.append(note_data[current_idx])
+        chord_id = self.chord2id.get_id(chord_data[current_idx + 1])
+        input_chord_sample.append(chord_id)
 
-      if idx + 1 < end:
-        target_sample = data[idx + 1]
-      else:
-        target_sample = self.rest_note_class
+      target_sample = note_data[idx + 1]
 
-      input_list.append(input_sample)
-      target_list.append(target_sample)
+      input_note_list.append(input_note_sample)
+      input_chord_list.append(input_chord_sample)
+      target_note_list.append(target_sample)
 
-    return np.array(input_list), np.array(target_list)
+    return np.array(input_note_list), np.array(input_chord_list), np.array(target_note_list)
 
   def _preprocess_pianoroll_dict(self, pianoroll_dict):
     note_data_dict = {}  # key: file_num, value: note series
@@ -299,13 +319,16 @@ if __name__ == '__main__':
 
   for i in range(0, batch_song_num):
     # print("{} ====================================================== ".format(i))
-    _, note_chord_dict = loader.generate_batch_buffer(i)
+    loader.generate_batch_buffer(i)
+    batch_num = loader.get_batch_num()
 
-    for key in list(note_chord_dict.keys()):
-      for chord in note_chord_dict[key]:
-        chord_dict[chord] = 0
+    # print(loader.batch_song_input_note.shape)
+    # print(loader.batch_song_input_chord.shape)
+    for batch_idx in range(0, batch_num):
+      batch_input_note, batch_input_chord, batch_target_note = loader.get_batch(batch_idx) 
+      print(batch_input_note)
+      print(batch_input_chord)
+      print(batch_target_note)
 
-  print(chord_dict.keys())
-  print(len(list(chord_dict.keys())))
 
 
