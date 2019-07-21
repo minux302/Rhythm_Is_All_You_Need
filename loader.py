@@ -69,7 +69,7 @@ class MelodyandChordLoader:
     self.chord2id        = Chord2Id()
     self.chord_class_num = chord_class_num
 
-  def generate_batch_buffer(self, i, shuffle=False):
+  def generate_batch_buffer(self, i, shuffle=True):
 
     start_idx = i * self.batch_song_size
     self.batch_song_input_note  = np.empty((0, self.seq_len))
@@ -299,6 +299,7 @@ if __name__ == '__main__':
 
   seq_len = 20
   class_num = 128 + 1
+  chord_class_num = 84
   batch_song_size = 1 
   batch_size = 3
   fs = 2  # frame_per_second
@@ -307,6 +308,7 @@ if __name__ == '__main__':
   loader = MelodyandChordLoader(p_midi_list=p_midi_list_train,
                                 seq_len=seq_len,
                                 class_num=class_num,
+                                chord_class_num=chord_class_num,
                                 batch_song_size=batch_song_size,
                                 batch_size=batch_size,
                                 fs=fs)
