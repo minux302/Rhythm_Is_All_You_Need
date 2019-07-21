@@ -1,6 +1,7 @@
 # Model Hyper Parameters
 SEQ_LEN =  20
 CLASS_NUM = 128 + 1
+CHORD_CLASS_NUM = 84
 FRAME_PER_SECOND = 3
 
 # Training Parameters

@@ -35,6 +35,8 @@ def split_dataset(dataset_path, train_valid_ratio = 0.2):
         os.system(cmd)
         print(cmd)
 
+
 if __name__ == '__main__':
+    # split dataset
     dataset_path = 'dataset_debug' 
     split_dataset(dataset_path)

@@ -38,9 +38,6 @@ class Chord2Id:
   def get_id(self, chord):
     return self.chord_list.index(chord)
 
-  def get_class_num(self):
-    return self.chord_class_num
-
 
 class MelodyandChordLoader:
 
@@ -48,6 +45,7 @@ class MelodyandChordLoader:
                p_midi_list,
                seq_len,
                class_num,
+               chord_class_num,
                batch_song_size=16,
                batch_size=256,
                fs=30):
@@ -69,7 +67,7 @@ class MelodyandChordLoader:
     self.batch_idx_list          = np.array([])
 
     self.chord2id        = Chord2Id()
-    self.chord_class_num = self.chord2id.get_class_num()
+    self.chord_class_num = chord_class_num
 
   def generate_batch_buffer(self, i, shuffle=False):
 
@@ -137,7 +135,8 @@ class MelodyandChordLoader:
             # input_chord_sample.append('tmp')  # Todo Rethink
             input_chord_sample.append(randint(0, self.chord_class_num - 1))
           else:
-            input_chord_sample.append(chord_data[0])
+            chord_id = self.chord2id.get_id(chord_data[0])
+            input_chord_sample.append(chord_id)
 
       for i in range(start_iterate, self.seq_len):
         current_idx = idx - (self.seq_len - i - 1)

@@ -35,12 +35,14 @@ def train(id, reset):
   train_loader = MelodyandChordLoader(p_midi_list=p_midi_list_train,
                                       seq_len=config.SEQ_LEN,
                                       class_num=config.CLASS_NUM,
+                                      chord_class_num=config.CHORD_CLASS_NUM,
                                       fs=config.FRAME_PER_SECOND,
                                       batch_song_size=config.BATCH_SONG_SIZE,
                                       batch_size=config.BATCH_SIZE)
   valid_loader = MelodyandChordLoader(p_midi_list=p_midi_list_valid,
                                       seq_len=config.SEQ_LEN,
                                       class_num=config.CLASS_NUM,
+                                      chord_class_num=config.CHORD_CLASS_NUM,
                                       fs=config.FRAME_PER_SECOND,
                                       batch_song_size=config.BATCH_SONG_SIZE,
                                       batch_size=config.BATCH_SIZE)
@@ -49,12 +51,14 @@ def train(id, reset):
   with tf.Graph().as_default():
 
     # model build
-    model               = Model(config.SEQ_LEN, config.CLASS_NUM)
-    input_pl, target_pl = model.placeholders()
-    is_training_pl      = tf.placeholder(tf.bool, name="is_training")
-    pred                = model.infer(input_pl, is_training_pl)
-    loss                = model.loss(pred, target_pl)
-    opt                 = model.optimizer(loss)
+    model = Model(seq_len=config.SEQ_LEN,
+                  class_num=config.CLASS_NUM,
+                  chord_class_num=config.CHORD_CLASS_NUM)
+    input_note_pl, input_chord_pl, target_pl = model.placeholders()
+    is_training_pl = tf.placeholder(tf.bool, name="is_training")
+    pred           = model.infer(input_note_pl, input_chord_pl, is_training_pl)
+    loss           = model.loss(pred, target_pl)
+    opt            = model.optimizer(loss)
 
     saver = tf.train.Saver()
     config_gpu = tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True))
@@ -85,10 +89,11 @@ def train(id, reset):
           for batch_idx in range(0, batch_num):
 
             # create input data from selected songs
-            batch_input, batch_target = train_loader.get_batch(batch_idx) 
+            batch_note_input, batch_chord_input, batch_target = train_loader.get_batch(batch_idx)
 
             feed_dict = {
-                input_pl      : batch_input,
+                input_note_pl : batch_note_input,
+                input_chord_pl: batch_chord_input,
                 target_pl     : batch_target,
                 is_training_pl: True
             }
@@ -109,13 +114,15 @@ def train(id, reset):
             # validate one batch only for time saving 
             valid_loader.shuffle_midi_list()
             valid_loader.generate_batch_buffer(0)
-            batch_input, batch_target = valid_loader.get_batch(0)
+            batch_note_input, batch_chord_input, batch_target = valid_loader.get_batch(0)
 
             feed_dict = {
-                input_pl      : batch_input,
+                input_note_pl : batch_note_input,
+                input_chord_pl: batch_chord_input,
                 target_pl     : batch_target,
                 is_training_pl: False
             }
+ 
             _, summary = sess.run([loss, merged], feed_dict)
             valid_writer.add_summary(summary, batch_song_iter_num)
 
