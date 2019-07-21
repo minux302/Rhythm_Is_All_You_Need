@@ -17,6 +17,27 @@ def get_p_extension_list(folder, extension='mid'):
   return p_extension_list
 
 
+class Chord2Id:
+
+  def __init__(self):
+    self.chord_list = self._generate_chord_list()
+
+  def _generate_chord_list(self):
+    chord_list = []
+
+    key_list = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B']
+    chord_type_list = ['', 'M7', 'm', 'm7', '7', 'o', 'ø']
+
+    for key in key_list:
+      for chord_type in chord_type_list:
+        chord = key + chord_type
+        chord_list.append(chord)
+    return chord_list
+
+  def get_id(self, chord):
+    return self.chord_list.index(chord)
+
+
 class MelodyandChordLoader:
 
   def __init__(self,
@@ -61,8 +82,8 @@ class MelodyandChordLoader:
     if shuffle:
       np.random.shuffle(self.batch_idx_list)
 
-    # tmp
-    return chord_data_dict
+    return note_data_dict, chord_data_dict
+    # return 
 
   def get_batch(self, i):
     idx = i * self.batch_size
@@ -113,7 +134,7 @@ class MelodyandChordLoader:
     return np.array(input_list), np.array(target_list)
 
   def _preprocess_pianoroll_dict(self, pianoroll_dict):
-    note_data_dict = {}   # key: file_num, value: note series
+    note_data_dict = {}  # key: file_num, value: note series
 
     for name_num in pianoroll_dict.keys():
       pianoroll      = pianoroll_dict[name_num]
@@ -160,7 +181,7 @@ class MelodyandChordLoader:
 
     for name_num in chord_symbols_dict.keys():
 
-      chord_symbols = chord_symbols_dict[name_num]
+      chord_symbols = chord_symbols_dict[name_num]  # (chord_num, [chord, start, end])
 
       # preprocess for chord notation
       chord_list = []
@@ -177,6 +198,8 @@ class MelodyandChordLoader:
         # rm tention (9, 11, 13) notation, leaves 7th exept for ø
         chord = ''.join(c for c in chord if not(c.isdigit() and c != '7'))
         chord = chord.replace('ø7', 'ø')
+        chord = chord.replace('maj7', 'maj')
+        chord = chord.replace('maj', 'M7')
 
         # align chord notation
         chord = chord[0].upper() + chord[1:]
@@ -276,7 +299,7 @@ if __name__ == '__main__':
 
   for i in range(0, batch_song_num):
     # print("{} ====================================================== ".format(i))
-    note_chord_dict = loader.generate_batch_buffer(i)
+    _, note_chord_dict = loader.generate_batch_buffer(i)
 
     for key in list(note_chord_dict.keys()):
       for chord in note_chord_dict[key]:
