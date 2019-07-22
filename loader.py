@@ -19,24 +19,44 @@ def get_p_extension_list(folder, extension='mid'):
 
 class Chord2Id:
 
-  def __init__(self):
+  def __init__(self, demo=False):
+    self.key_list        = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B']
+    self.chord_type_list = ['', 'M7', 'm', 'm7', '7', 'o', 'ø']
     self.chord_list      = self._generate_chord_list()
     self.chord_class_num = len(self.chord_list)
+    if demo:
+      self.chord_to_note = self._generate_chord_note()
 
   def _generate_chord_list(self):
     chord_list = []
 
-    key_list = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B']
-    chord_type_list = ['', 'M7', 'm', 'm7', '7', 'o', 'ø']
-
-    for key in key_list:
-      for chord_type in chord_type_list:
+    for key in self.key_list:
+      for chord_type in self.chord_type_list:
         chord = key + chord_type
         chord_list.append(chord)
     return chord_list
 
+  def _generate_chord_note(self, octave=4):
+    base_notes = [np.array([0, 4, 7])     + 12*octave,
+                  np.array([0, 4, 7, 11]) + 12*octave,
+                  np.array([0, 3, 7])     + 12*octave,
+                  np.array([0, 3, 7, 10]) + 12*octave,
+                  np.array([0, 4, 7, 10]) + 12*octave,
+                  np.array([0, 3, 7, 10]) + 12*octave,
+                  np.array([0, 3, 7, 11]) + 12*octave]
+
+    chord_to_note = {}
+    for i, key in enumerate(self.key_list):
+      for j, chord in enumerate(self.chord_type_list):
+        chord_notes = base_notes[j] + i
+        chord_to_note[key+chord] = chord_notes
+    return chord_to_note
+
   def get_id(self, chord):
     return self.chord_list.index(chord)
+
+  def get_chord_to_note_dict(self):
+    return self.chord_to_note
 
 
 class MelodyandChordLoader:

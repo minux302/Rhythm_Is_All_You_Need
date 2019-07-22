@@ -42,9 +42,9 @@ class Model:
   def infer(self, note_input, chord_input, is_training):
 
     note_x = tf.keras.layers.Embedding(input_dim=self.class_num,
-                                  output_dim=self.output_note_emb,
-                                  input_length=self.seq_len
-                                  )(note_input)
+                                       output_dim=self.output_note_emb,
+                                       input_length=self.seq_len
+                                       )(note_input)
 
     chord_x = tf.keras.layers.Embedding(input_dim=self.chord_class_num,
                                   output_dim=self.output_chord_emb,
@@ -52,10 +52,13 @@ class Model:
                                   )(chord_input)
 
     x = tf.keras.layers.Concatenate()([note_x, chord_x])
+    # x = note_x
 
+    """
     x = tf.keras.layers.Bidirectional(
         tf.keras.layers.GRU(self.rnn_unit, return_sequences=True))(x)
     x = tf.layers.dropout(x, rate=self.dropout_ratio, training=is_training)
+    """
 
     x = tf.keras.layers.Bidirectional(
         tf.keras.layers.GRU(self.rnn_unit))(x)
