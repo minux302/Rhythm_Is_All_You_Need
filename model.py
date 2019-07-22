@@ -52,13 +52,6 @@ class Model:
                                   )(chord_input)
 
     x = tf.keras.layers.Concatenate()([note_x, chord_x])
-    # x = note_x
-
-    """
-    x = tf.keras.layers.Bidirectional(
-        tf.keras.layers.GRU(self.rnn_unit, return_sequences=True))(x)
-    x = tf.layers.dropout(x, rate=self.dropout_ratio, training=is_training)
-    """
 
     x = tf.keras.layers.Bidirectional(
         tf.keras.layers.GRU(self.rnn_unit))(x)
