@@ -20,14 +20,14 @@ def generate_from_random(class_num, seq_len=50):
   return generate
 
 
-def backing_music(backing_midi_name):
-  os.system('timidity ' + backing_midi_name)
-
-
 def note_on(midiOutput, pred_note, volume, note_on_time=0.15):
   midiOutput.note_on(pred_note, volume)
   time.sleep(note_on_time)
   midiOutput.note_off(pred_note, volume)
+
+
+def backing_music(backing_midi_name):
+  os.system('timidity ' + backing_midi_name)
 
 
 def demo(ckpt_path):
@@ -46,11 +46,11 @@ def demo(ckpt_path):
   midiOutput.set_instrument(0)  # 0: piano
 
   # subprossed for backing and sound melody note
-  backing_process = Process(target=backing_music, args=(backing_midi_name,))
   note_on_process = Process(target=note_on,       args=())
+  backing_process = Process(target=backing_music, args=(backing_midi_name,))
 
   # init for input
-  note_series     = generate_from_random(config.CLASS_NUM, seq_len=config.SEQ_LEN) 
+  note_series     = generate_from_random(config.CLASS_NUM,       seq_len=config.SEQ_LEN) 
   chord_id_series = generate_from_random(config.CHORD_CLASS_NUM, seq_len=config.SEQ_LEN - 1) 
   chord2id        = Chord2Id(demo=True)
   chord_to_note   = chord2id.get_chord_to_note_dict()
@@ -77,8 +77,9 @@ def demo(ckpt_path):
       saver.restore(sess, ckpt_path)
 
       # subprocess for backing and sound note
-      backing_process.start()
       note_on_process.start()
+      backing_process.start()
+      start_time = time.time()
 
       for i in range(generate_length):
 
@@ -97,7 +98,7 @@ def demo(ckpt_path):
         output = np.array(output).flatten()
         pred_note = np.argsort(output)[-1]
 
-        if pred_note == 128:
+        if pred_note == config.CLASS_NUM - 1:  # rest note class
           pred_note = np.argsort(output)[-2]
         note_series.append(pred_note)
         print(pred_note)
