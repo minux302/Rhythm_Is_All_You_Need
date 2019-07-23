@@ -39,60 +39,108 @@ def split_dataset(dataset_path, train_valid_ratio = 0.2):
 
 
 def piano_roll_to_pretty_midi(piano_roll, fs=100, program=0):
-    '''Convert a Piano Roll array into a PrettyMidi object
-     with a single instrument.
-    Parameters
-    ----------
-    piano_roll : np.ndarray, shape=(128,frames), dtype=int
-        Piano roll of one instrument
-    fs : int
-        Sampling frequency of the columns, i.e. each column is spaced apart
-        by ``1./fs`` seconds.
-    program : int
-        The program number of the instrument.
-    Returns
-    -------
-    midi_object : pretty_midi.PrettyMIDI
-        A pretty_midi.PrettyMIDI class instance describing
-        the piano roll.
-    '''
-    notes, frames = piano_roll.shape
-    pm = pretty_midi.PrettyMIDI()
-    instrument = pretty_midi.Instrument(program=program)
+  """
+  from https://github.com/haryoa/note_music_generator
+  """
 
-    # pad 1 column of zeros so we can acknowledge inital and ending events
-    piano_roll = np.pad(piano_roll, [(0, 0), (1, 1)], 'constant')
+  notes, frames = piano_roll.shape
+  pm = pretty_midi.PrettyMIDI()
+  instrument = pretty_midi.Instrument(program=program)
 
-    # use changes in velocities to find note on / note off events
-    velocity_changes = np.nonzero(np.diff(piano_roll).T)
+  # pad 1 column of zeros so we can acknowledge inital and ending events
+  piano_roll = np.pad(piano_roll, [(0, 0), (1, 1)], 'constant')
 
-    # keep track on velocities and note on times
-    prev_velocities = np.zeros(notes, dtype=int)
-    note_on_time = np.zeros(notes)
+  # use changes in velocities to find note on / note off events
+  velocity_changes = np.nonzero(np.diff(piano_roll).T)
 
-    for time, note in zip(*velocity_changes):
-        # use time + 1 because of padding above
-        velocity = piano_roll[note, time + 1]
-        time = time / fs
-        if velocity > 0:
-            if prev_velocities[note] == 0:
-                note_on_time[note] = time
-                prev_velocities[note] = velocity
-        else:
-            pm_note = pretty_midi.Note(
-                velocity=prev_velocities[note],
-                pitch=note,
-                start=note_on_time[note],
-                end=time)
-            instrument.notes.append(pm_note)
-            prev_velocities[note] = 0
-    pm.instruments.append(instrument)
-    return pm
+  # keep track on velocities and note on times
+  prev_velocities = np.zeros(notes, dtype=int)
+  note_on_time = np.zeros(notes)
+
+  for time, note in zip(*velocity_changes):
+    # use time + 1 because of padding above
+    velocity = piano_roll[note, time + 1]
+    time = time / fs
+    if velocity > 0:
+      if prev_velocities[note] == 0:
+        note_on_time[note] = time
+        prev_velocities[note] = velocity
+      else:
+        pm_note = pretty_midi.Note(
+            velocity=prev_velocities[note],
+            pitch=note,
+            start=note_on_time[note],
+            end=time)
+        instrument.notes.append(pm_note)
+        prev_velocities[note] = 0
+  pm.instruments.append(instrument)
+  return pm
 
 
+def piano_roll_adder_to_pretty_midi(pm,
+                                    piano_roll,
+                                    program=0,
+                                    is_drum=False,
+                                    fs=100,
+                                    velocity_ratio=1.0):
+
+  notes, frames = piano_roll.shape
+  instrument = pretty_midi.Instrument(program=program, is_drum=is_drum)
+
+  # pad 1 column of zeros so we can acknowledge inital and ending events
+  piano_roll = np.pad(piano_roll, [(0, 0), (1, 1)], 'constant')
+
+  # use changes in velocities to find note on / note off events
+  velocity_changes = np.nonzero(np.diff(piano_roll).T)
+
+  # keep track on velocities and note on times
+  prev_velocities = np.zeros(notes, dtype=int)
+  note_on_time = np.zeros(notes)
+
+  for time, note in zip(*velocity_changes):
+      # use time + 1 because of padding above
+      velocity = piano_roll[note, time + 1] * velocity_ratio
+      time = time / fs
+      if velocity > 0:
+          if prev_velocities[note] == 0:
+              note_on_time[note] = time
+              prev_velocities[note] = velocity
+      else:
+          pm_note = pretty_midi.Note(
+              velocity=prev_velocities[note],
+              pitch=note,
+              start=note_on_time[note],
+              end=time)
+          instrument.notes.append(pm_note)
+          prev_velocities[note] = 0
+  pm.instruments.append(instrument)
+  return pm
 
 
 if __name__ == '__main__':
-    # split dataset
-    dataset_path = 'dataset_debug_mini' 
-    split_dataset(dataset_path)
+  # split dataset
+  """
+  dataset_path = 'dataset_debug_mini' 
+  split_dataset(dataset_path)
+  """
+
+  # fix backing midi 
+  midi_name      = 'backing.mid'
+  fix_midi_name  = midi_name.split('.')[0] + '_fix.mid'
+  start_idx      = 240
+  fs             = 150
+  velocity_ratio = 0.2
+  pm             = pretty_midi.PrettyMIDI(midi_name)
+  fix_pm         = pretty_midi.PrettyMIDI()
+
+  for instrument in pm.instruments:
+    program    = instrument.program
+    is_drum    = instrument.is_drum
+    piano_roll = instrument.get_piano_roll()
+    piano_roll = piano_roll[:, start_idx:]
+    fix_pm = piano_roll_adder_to_pretty_midi(pm=fix_pm,
+                                             piano_roll=piano_roll,
+                                             program=program,
+                                             is_drum=is_drum,
+                                             fs=fs)
+    fix_pm.write(fix_midi_name)
