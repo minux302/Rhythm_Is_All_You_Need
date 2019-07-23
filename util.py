@@ -142,5 +142,6 @@ if __name__ == '__main__':
                                              piano_roll=piano_roll,
                                              program=program,
                                              is_drum=is_drum,
-                                             fs=fs)
+                                             fs=fs, 
+                                             velocity_ratio=velocity_ratio)
     fix_pm.write(fix_midi_name)

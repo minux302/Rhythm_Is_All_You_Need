@@ -6,7 +6,6 @@ import tensorflow as tf
 import config
 from model import Model
 from loader import Chord2Id
-from util import piano_roll_to_pretty_midi
 
 import os
 import time
@@ -15,53 +14,53 @@ import pygame.midi
 import readchar
 from multiprocessing import Process
 
-def backing_music():
-  os.system('timidity resample.mid')
-  return
-
-# Bags Groove
-chord_list_part = ['Cm7', 'F7', 'BbM7', 'EbM7']
-chord_list = []
-for i in range(200):
-    chord_list += chord_list_part
-fs = 3
 
 def generate_from_random(class_num, seq_len=50):
   generate = np.random.randint(0, class_num - 1, seq_len).tolist()
   return generate
 
-def note_on(midiOutput, pred_note, volume):
-    midiOutput.note_on(pred_note, volume)
-    time.sleep(0.15)
-    midiOutput.note_off(pred_note, volume)
 
-def create_sample(ckpt_path):
+def backing_music(backing_midi_name):
+  os.system('timidity ' + backing_midi_name)
 
-  note_series  = generate_from_random(config.CLASS_NUM, seq_len=config.SEQ_LEN) 
-  chord_id_series = generate_from_random(config.CHORD_CLASS_NUM, seq_len=config.SEQ_LEN - 1) 
 
-  chord2id = Chord2Id(demo=True)
-  chord_to_note = chord2id.get_chord_to_note_dict()
+def note_on(midiOutput, pred_note, volume, note_on_time=0.15):
+  midiOutput.note_on(pred_note, volume)
+  time.sleep(note_on_time)
+  midiOutput.note_off(pred_note, volume)
 
-  append_chord_id_series = []
-  chord_series = []
-  for chord in chord_list:
-    for _ in range(fs):
-      chord_series.append(chord)
-      append_chord_id_series.append(chord2id.get_id(chord))
 
-  generate_length = len(chord_series)
-  chord_id_series += append_chord_id_series
+def demo(ckpt_path):
 
-  # settin for pygame
-  inst = 0  # piano
+  backing_midi_name = 'backing_fix.mid'
+  chord_list = ['F7', 'Bb7', 'F7', 'F7',
+                'Bb7', 'Bb7', 'F7', 'D7',
+                'Gm7', 'C7', 'F7', 'C7']
+  fs = 3
+  volume = 300
+
+  # setting for pygame
   pygame.init()
   pygame.midi.init()
   midiOutput = pygame.midi.Output(pygame.midi.get_default_output_id())
-  midiOutput.set_instrument(inst)
-  volume = 300
-  subp = Process(target=backing_music, args=())
-  subp_ = Process(target=note_on, args=())
+  midiOutput.set_instrument(0)  # 0: piano
+
+  # subprossed for backing and sound melody note
+  backing_process = Process(target=backing_music, args=(backing_midi_name,))
+  note_on_process = Process(target=note_on,       args=())
+
+  # init for input
+  note_series     = generate_from_random(config.CLASS_NUM, seq_len=config.SEQ_LEN) 
+  chord_id_series = generate_from_random(config.CHORD_CLASS_NUM, seq_len=config.SEQ_LEN - 1) 
+  chord2id        = Chord2Id(demo=True)
+  chord_to_note   = chord2id.get_chord_to_note_dict()
+
+  append_chord_id_series = []
+  for chord in chord_list:
+    for _ in range(fs):
+      append_chord_id_series.append(chord2id.get_id(chord))
+  generate_length =  len(append_chord_id_series)
+  chord_id_series += append_chord_id_series
 
   with tf.Graph().as_default():
 
@@ -77,10 +76,10 @@ def create_sample(ckpt_path):
 
       saver.restore(sess, ckpt_path)
 
-      subp.start()
-      subp_.start()
+      # subprocess for backing and sound note
+      backing_process.start()
+      note_on_process.start()
 
-      generate_length = 100
       for i in range(generate_length):
 
         key = readchar.readchar()
@@ -100,16 +99,9 @@ def create_sample(ckpt_path):
 
         if pred_note == 128:
           pred_note = np.argsort(output)[-2]
-
         note_series.append(pred_note)
-
         print(pred_note)
         note_on(midiOutput, pred_note, volume)
-        # midiOutput.note_on(pred_note, volume)
-        # time.sleep(0.2)
-        # midiOutput.note_off(pred_note, volume)
-
-
 
 
 @click.command(context_settings=dict(help_option_names=['-h', '--help']))
@@ -120,7 +112,7 @@ def create_sample(ckpt_path):
   required=True
 )
 def main(ckpt_path):
-  create_sample(ckpt_path)
+  demo(ckpt_path)
 
 
 if __name__ == '__main__':
