@@ -109,14 +109,18 @@ def demo(ckpt_path):
         if key == 'q':
           break
         elapsed_time = time.time() - start_time
-        current_idx = int(elapsed_time / second_per_chord) + config.SEQ_LEN 
+        current_chord_idx = int(elapsed_time / second_per_chord) + config.SEQ_LEN 
 
-        for j in range( current_idx - len(note_series)):
+        from_last_time = time.time() - last_time
+        last_time = time.time()
+        add_rest_note_num = int(from_last_time / second_per_chord) 
+        print(add_rest_note_num)
+        for j in range(add_rest_note_num):
           note_series.append(config.CLASS_NUM - 1)
 
-        note_input = np.array([note_series[current_idx-config.SEQ_LEN:current_idx]])
-        chord_input = np.array([chord_id_series[current_idx-config.SEQ_LEN:current_idx]])
-        # print(note_input)
+        note_input = np.array([note_series[-config.SEQ_LEN:]])
+        chord_input = np.array([chord_id_series[current_chord_idx-config.SEQ_LEN:current_chord_idx]])
+        print(note_input)
         
         feed_dict = {
           input_note_pl : note_input,
@@ -137,7 +141,7 @@ def demo(ckpt_path):
         if pred_note == config.CLASS_NUM - 1:  # rest note class
           pred_note = np.argsort(output)[-top_random[1]]
         note_series.append(pred_note)
-        print(pred_note, chord_series[current_idx - config.SEQ_LEN])
+        print(pred_note, chord_series[current_chord_idx - config.SEQ_LEN])
         note_on(midiOutput, pred_note, volume)
 
       del midiOutput
