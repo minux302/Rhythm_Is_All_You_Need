@@ -9,6 +9,7 @@ from loader import Chord2Id
 
 import os
 import time
+import pretty_midi
 import pygame
 import pygame.midi
 import readchar
@@ -20,23 +21,32 @@ def generate_from_random(class_num, seq_len=50):
   return generate
 
 
-def note_on(midiOutput, pred_note, volume, note_on_time=0.15):
+def note_on(midiOutput, pred_note, volume, note_on_time=0.1):
   midiOutput.note_on(pred_note, volume)
   time.sleep(note_on_time)
   midiOutput.note_off(pred_note, volume)
 
 
 def backing_music(backing_midi_name):
-  os.system('timidity ' + backing_midi_name)
+  os.system('timidity ' + backing_midi_name + ' --adjust-tempo=90')
 
 
 def demo(ckpt_path):
 
   backing_midi_name = 'backing_fix.mid'
-  chord_list = ['F7', 'Bb7', 'F7', 'F7',
-                'Bb7', 'Bb7', 'F7', 'D7',
-                'Gm7', 'C7', 'F7', 'C7']
-  fs = 3
+  chord_list = ['Cm7', 'F7', 'BbM7', 'EbM7',
+                'Aø', 'D7', 'Gm7', 'Gm7',
+                'Cm7', 'F7', 'BbM7', 'EbM7',
+                'Aø', 'D7', 'Gm7', 'Gm7',
+                'Aø', 'D7', 'Gm7', 'Gm7',
+                'Cm7', 'F7', 'BbM7', 'EbM7',
+                'Aø', 'D7', 'Gm7', 'Fm7',
+                'Aø', 'D7', 'Gm7', 'Gm7']
+  pm = pretty_midi.PrettyMIDI(backing_midi_name)
+  # tempo = pm.get_tempo_changes()[1]
+  tempo = 120
+  fs = 60 / tempo
+  note_num_per_chord = 4
   volume = 300
 
   # setting for pygame
@@ -55,11 +65,14 @@ def demo(ckpt_path):
   chord2id        = Chord2Id(demo=True)
   chord_to_note   = chord2id.get_chord_to_note_dict()
 
+  chord_series = []
   append_chord_id_series = []
   for chord in chord_list:
-    for _ in range(fs):
+    for _ in range(note_num_per_chord):
+      chord_series.append(chord)
       append_chord_id_series.append(chord2id.get_id(chord))
-  generate_length =  len(append_chord_id_series)
+  # generate_length =  len(append_chord_id_series)
+  generate_length =  10000
   chord_id_series += append_chord_id_series
 
   with tf.Graph().as_default():
@@ -71,6 +84,7 @@ def demo(ckpt_path):
     is_training_pl = tf.constant(False, name="is_training")
     pred           = model.infer(input_note_pl, input_chord_pl, is_training_pl)
 
+    print(chord_series)
     saver = tf.train.Saver()
     with tf.Session() as sess:
 
@@ -84,9 +98,17 @@ def demo(ckpt_path):
       for i in range(generate_length):
 
         key = readchar.readchar()
+        elapsed_time = time.time() - start_time
+        # current_idx = int(elapsed_time / fs) + config.SEQ_LEN
+        print(elapsed_time)
+        current_idx = int(elapsed_time / fs) + config.SEQ_LEN
+        print(current_idx)
 
-        note_input  = np.array([note_series[i:i+config.SEQ_LEN]])
-        chord_input = np.array([chord_id_series[i:i+config.SEQ_LEN]])
+        for j in range( current_idx - len(note_series)):
+          note_series.append(config.CLASS_NUM - 1)
+
+        note_input = np.array([note_series[current_idx-config.SEQ_LEN:current_idx]])
+        chord_input = np.array([chord_id_series[current_idx-config.SEQ_LEN:current_idx]])
         
         feed_dict = {
           input_note_pl : note_input,
@@ -101,7 +123,7 @@ def demo(ckpt_path):
         if pred_note == config.CLASS_NUM - 1:  # rest note class
           pred_note = np.argsort(output)[-2]
         note_series.append(pred_note)
-        print(pred_note)
+        print(pred_note, chord_series[current_idx - config.SEQ_LEN])
         note_on(midiOutput, pred_note, volume)
 
 

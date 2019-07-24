@@ -128,7 +128,7 @@ if __name__ == '__main__':
   midi_name      = 'backing.mid'
   fix_midi_name  = midi_name.split('.')[0] + '_fix.mid'
   start_idx      = 240
-  fs             = 150
+  fs             = 120
   velocity_ratio = 0.2
   pm             = pretty_midi.PrettyMIDI(midi_name)
   fix_pm         = pretty_midi.PrettyMIDI()
