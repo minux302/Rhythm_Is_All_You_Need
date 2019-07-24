@@ -3,6 +3,7 @@ import pretty_midi
 import numpy as np
 from pathlib import Path
 from random import seed, shuffle
+from loader import MelodyandChordLoader, get_p_extension_list
 
 
 seed(666)
@@ -117,6 +118,32 @@ def piano_roll_adder_to_pretty_midi(pm,
   return pm
 
 
+def get_sample_chord_progression():
+  save_path = './dataset_debug'
+  p_midi_list = get_p_extension_list(save_path, 'mid')
+
+  seq_len = 20
+  class_num = 128 + 1
+  chord_class_num = 84
+  batch_song_size = 1 
+  batch_size = 3
+  fs = 3  # frame_per_second
+
+  p_midi_list_train = get_p_extension_list(os.path.join(save_path, 'train'), 'mid')
+  loader = MelodyandChordLoader(p_midi_list=p_midi_list_train,
+                                seq_len=seq_len,
+                                class_num=class_num,
+                                chord_class_num=chord_class_num,
+                                batch_song_size=batch_song_size,
+                                batch_size=batch_size,
+                                fs=fs)
+
+  loader.shuffle_midi_list()
+  batch_song_num = loader.get_batch_song_num()
+  chord_data_dict = loader.generate_batch_buffer(0) 
+  print(chord_data_dict)
+
+
 if __name__ == '__main__':
   # split dataset
   """
@@ -129,12 +156,14 @@ if __name__ == '__main__':
   fix_midi_name  = midi_name.split('.')[0] + '_fix.mid'
   start_idx      = 240
   fs             = 120
-  velocity_ratio = 0.2
+  velocity_ratio = 1.0
   pm             = pretty_midi.PrettyMIDI(midi_name)
   fix_pm         = pretty_midi.PrettyMIDI()
 
   for instrument in pm.instruments:
     program    = instrument.program
+    if program == 0:
+      continue
     is_drum    = instrument.is_drum
     piano_roll = instrument.get_piano_roll()
     piano_roll = piano_roll[:, start_idx:]
@@ -145,3 +174,5 @@ if __name__ == '__main__':
                                              fs=fs, 
                                              velocity_ratio=velocity_ratio)
     fix_pm.write(fix_midi_name)
+
+  # get_sample_chord_progression()

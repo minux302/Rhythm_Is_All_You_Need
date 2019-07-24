@@ -111,7 +111,8 @@ class MelodyandChordLoader:
     if shuffle:
       np.random.shuffle(self.batch_idx_list)
 
-    return 
+    # return 
+    return chord_data_dict 
 
   def get_batch(self, i):
     idx = i * self.batch_size
