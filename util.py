@@ -152,11 +152,11 @@ if __name__ == '__main__':
   """
 
   # fix backing midi 
-  midi_name      = 'backing.mid'
+  midi_name      = 'autumn_leaves.mid'
   fix_midi_name  = midi_name.split('.')[0] + '_fix.mid'
   start_idx      = 240
   fs             = 120
-  velocity_ratio = 1.0
+  velocity_ratio = 1
   pm             = pretty_midi.PrettyMIDI(midi_name)
   fix_pm         = pretty_midi.PrettyMIDI()
 

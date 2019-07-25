@@ -16,14 +16,14 @@ import pygame
 import pygame.midi
 import readchar
 from multiprocessing import Process
-
+from getch import getch
 
 def generate_from_random(class_num, seq_len=50):
   generate = np.random.randint(0, class_num - 1, seq_len).tolist()
   return generate
 
 
-def song_factory(song_name, repeat_num=3):
+def song_factory(song_name):
 
   if song_name == 'autumn_leaves':
     chord_list_parts = ['Cm7' , 'F7'  , 'BbM7', 'EbM7',
@@ -34,7 +34,8 @@ def song_factory(song_name, repeat_num=3):
                         'Cm7' , 'F7'  , 'BbM7', 'EbM7',
                         'Aø'  , 'D7'  , 'Gm7' , 'Fm7' ,
                         'Aø'  , 'D7'  , 'Gm7' , 'Gm7' ]
-    tempo = 120
+    tempo      = 120
+    repeat_num = 3
   elif song_name == 'deacon_blues':
     chord_list_parts = ['CM7' , 'Em7' , 'A'   , 'D7'  ,
                         'G7'  , 'B7'  , 'Em7' , 'A7'  ,
@@ -63,13 +64,14 @@ def song_factory(song_name, repeat_num=3):
                         'FM7' , 'E7'  , 'Am7' , 'Bb7' ,
                         'E7'  , 'B7'  , 'B7' ,  'B7' ,
                         ]
-    tempo = 140
+    tempo      = 140
+    repeat_num = 1
   else:
     print("There is no midi for " + song_name)
     sys.exit()
 
   chord_list = []
-  for i in range(10):
+  for i in range(repeat_num):
     chord_list += chord_list_parts
   return chord_list, tempo
 
@@ -77,9 +79,10 @@ def song_factory(song_name, repeat_num=3):
 class Demo:
   def __init__(self,
                song_name,
-               ckpt_path):
+               ckpt_path,
+               backing_volume_ratio=0.1):
 
-    self.chord_list, tempo = song_factory(song_name, repeat_num=3)
+    self.chord_list, tempo = song_factory(song_name)
     self.second_per_chord  = (60*4) / tempo
     self.volume            = 300
     self.start_time        = 0
@@ -94,7 +97,8 @@ class Demo:
     # subprossed for backing and sound melody note
     backing_path = song_name + '.mid'
     self.note_on_process = Process(target=self._note_on,    args=())
-    self.backing_process = Process(target=self._backing_on, args=(backing_path,))
+    self.backing_process = Process(target=self._backing_on, args=(backing_path,
+                                                                  backing_volume_ratio*100))
 
     # init for session
     with tf.Graph().as_default():
@@ -116,6 +120,8 @@ class Demo:
     self.chord2id        = Chord2Id(demo=True)
 
   def close(self):
+    self.note_on_process.terminate()
+    self.backing_process.terminate()
     del self.midiOutput
     pygame.midi.quit()
 
@@ -124,8 +130,15 @@ class Demo:
     time.sleep(note_on_time)
     self.midiOutput.note_off(pred_note, self.volume)
 
-  def _backing_on(self,backing_path):
-    os.system('timidity ' + backing_path + ' --volume=10')
+  def _backing_on(self,backing_path, volume_ratio):
+    os.system('timidity {} --volume={}'.format(backing_path, volume_ratio))
+    """
+    from pydub import AudioSegment
+    from pydub.playback import play
+
+    audio_data = AudioSegment.from_mp3('./sample.mp3')
+    play(audio_data)
+    """
 
   def run_bgm(self):
     self.note_on_process.start()
@@ -134,19 +147,12 @@ class Demo:
     self.last_time = time.time()
 
   def _post_process(self, output):
-    # toDo add random_flag
-    if True:
-      top_random = [1, 2]
-      shuffle(top_random)
-      pred_note = np.argsort(output)[-top_random[0]]
-      if pred_note == config.CLASS_NUM - 1:  # rest note class
-        pred_note = np.argsort(output)[-top_random[1]]
-    else:
-      pred_note = np.argsort(output)[-1]
-      if pred_note == config.CLASS_NUM - 1:  # rest note class
-        pred_note = np.argsort(output)[-2]
+    top_random = [1, 2]
+    shuffle(top_random)
+    pred_note = np.argsort(output)[-top_random[0]]
+    if pred_note == config.CLASS_NUM - 1:  # rest note class
+      pred_note = np.argsort(output)[-top_random[1]]
 
-    # print(pred_note, current_chord)
     self.note_series.append(pred_note)
     self._note_on(pred_note)
 
@@ -186,8 +192,8 @@ def demo_run(song_name, ckpt_path):
 
   demo.run_bgm()
   while True:
-    key = readchar.readchar()
-    if key == 'q':
+    key = ord(getch())
+    if key == 27: # esc
       break
     demo.run_melody()
   demo.close()
