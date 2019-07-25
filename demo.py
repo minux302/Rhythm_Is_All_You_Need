@@ -9,6 +9,7 @@ from model import Model
 from loader import Chord2Id
 
 import os
+import sys
 import time
 import pretty_midi
 import pygame
@@ -22,132 +23,163 @@ def generate_from_random(class_num, seq_len=50):
   return generate
 
 
-def note_on(midiOutput, pred_note, volume, note_on_time=0.12):
-  midiOutput.note_on(pred_note, volume)
-  time.sleep(note_on_time)
-  midiOutput.note_off(pred_note, volume)
+def song_factory(song_name, repeat_num=3):
 
+  if song_name == 'autumn_leaves':
+    chord_list_parts = ['Cm7' , 'F7'  , 'BbM7', 'EbM7',
+                        'Aø'  , 'D7'  , 'Gm7' , 'Gm7' ,
+                        'Cm7' , 'F7'  , 'BbM7', 'EbM7',
+                        'Aø'  , 'D7'  , 'Gm7' , 'Gm7' ,
+                        'Aø'  , 'D7'  , 'Gm7' , 'Gm7' ,
+                        'Cm7' , 'F7'  , 'BbM7', 'EbM7',
+                        'Aø'  , 'D7'  , 'Gm7' , 'Fm7' ,
+                        'Aø'  , 'D7'  , 'Gm7' , 'Gm7' ]
+    tempo = 128
+  else:
+    print("There is no midi for " + song_name)
+    sys.exit()
 
-def backing_music(backing_midi_name):
-  os.system('timidity ' + backing_midi_name)
-
-
-def demo(ckpt_path):
-
-  backing_midi_name = 'backing_fix.mid'
-  chord_list_part = ['Cm7', 'F7', 'BbM7', 'EbM7',
-                'Aø', 'D7', 'Gm7', 'Gm7',
-                'Cm7', 'F7', 'BbM7', 'EbM7',
-                'Aø', 'D7', 'Gm7', 'Gm7',
-                'Aø', 'D7', 'Gm7', 'Gm7',
-                'Cm7', 'F7', 'BbM7', 'EbM7',
-                'Aø', 'D7', 'Gm7', 'Fm7',
-                'Aø', 'D7', 'Gm7', 'Gm7']
-  """
-  chord_list_part = ['Dm', 'Bb', 'Gm', 'F',
-                     'C', 'Dm', 'Dm','Bb',
-                     'Bb', 'Am', 'Am', 'Bb',
-                     'Bb', 'Dm', 'Dm', 'A']
-  """
   chord_list = []
   for i in range(10):
-    chord_list += chord_list_part
-  pm = pretty_midi.PrettyMIDI(backing_midi_name)
-  # tempo = pm.get_tempo_changes()[1]
-  tempo = 128
-  second_per_chord = (60*4) / tempo
-  volume = 300
+    chord_list += chord_list_parts
+  return chord_list, tempo
 
-  # setting for pygame
-  pygame.init()
-  pygame.midi.init()
-  midiOutput = pygame.midi.Output(pygame.midi.get_default_output_id())
-  midiOutput.set_instrument(0)  # 0: piano
 
-  # subprossed for backing and sound melody note
-  note_on_process = Process(target=note_on,       args=())
-  backing_process = Process(target=backing_music, args=(backing_midi_name,))
+class Demo:
+  def __init__(self,
+               song_name,
+               ckpt_path):
 
-  # init for input
-  note_series     = generate_from_random(config.CLASS_NUM,       seq_len=config.SEQ_LEN) 
-  chord_id_series = generate_from_random(config.CHORD_CLASS_NUM, seq_len=config.SEQ_LEN - 1) 
-  chord2id        = Chord2Id(demo=True)
+    self.chord_list, tempo = song_factory(song_name, repeat_num=3)
+    self.second_per_chord  = (60*4) / tempo
+    self.volume            = 300
+    self.start_time        = 0
+    self.last_time         = 0
 
-  with tf.Graph().as_default():
+    # init for pygame
+    pygame.init()
+    pygame.midi.init()
+    self.midiOutput = pygame.midi.Output(pygame.midi.get_default_output_id())
+    self.midiOutput.set_instrument(0)  # 0: piano
 
-    model = Model(seq_len=config.SEQ_LEN,
-                  class_num=config.CLASS_NUM,
-                  chord_class_num=config.CHORD_CLASS_NUM)
-    input_note_pl, input_chord_pl, target_pl = model.placeholders()
-    is_training_pl = tf.constant(False, name="is_training")
-    pred           = model.infer(input_note_pl, input_chord_pl, is_training_pl)
+    # subprossed for backing and sound melody note
+    backing_path = song_name + '.mid'
+    self.note_on_process = Process(target=self._note_on,    args=())
+    self.backing_process = Process(target=self._backing_on, args=(backing_path,))
 
-    saver = tf.train.Saver()
-    with tf.Session() as sess:
+    # init for session
+    with tf.Graph().as_default():
+      model = Model(seq_len=config.SEQ_LEN,
+                    class_num=config.CLASS_NUM,
+                    chord_class_num=config.CHORD_CLASS_NUM)
+      self.input_note_pl, self.input_chord_pl, self.target_pl = model.placeholders()
+      self.is_training_pl = tf.constant(False, name="is_training")
+      self.pred           = model.infer(self.input_note_pl,
+                                        self.input_chord_pl,
+                                        self.is_training_pl)
+      self.saver = tf.train.Saver()
+      self.sess = tf.Session()
+      self.saver.restore(self.sess, ckpt_path)
 
-      saver.restore(sess, ckpt_path)
+    # init for input
+    self.note_series     = generate_from_random(config.CLASS_NUM,       seq_len=config.SEQ_LEN) 
+    self.chord_id_series = generate_from_random(config.CHORD_CLASS_NUM, seq_len=config.SEQ_LEN - 1) 
+    self.chord2id        = Chord2Id(demo=True)
 
-      # subprocess for backing and sound note
-      note_on_process.start()
-      backing_process.start()
-      start_time = time.time()
-      last_time = time.time()
+  def close(self):
+    del self.midiOutput
+    pygame.midi.quit()
 
-      while True:
-        key = readchar.readchar()
-        if key == 'q':
-          break
-        elapsed_time = time.time() - start_time
-        current_chord = chord_list[int(elapsed_time // second_per_chord)]
+  def _note_on(self,pred_note, note_on_time=0.12):
+    self.midiOutput.note_on(pred_note,  self.volume)
+    time.sleep(note_on_time)
+    self.midiOutput.note_off(pred_note, self.volume)
 
-        from_last_time = time.time() - last_time
-        last_time = time.time()
-        rest_note_num = int(from_last_time / second_per_chord) 
-        for j in range(rest_note_num):
-          note_series.append(config.CLASS_NUM - 1)
-          chord_id_series.append(chord2id.get_id(current_chord))  # Todo, Consideration chord for rest note
-        chord_id_series.append(chord2id.get_id(current_chord)) 
+  def _backing_on(self,backing_path):
+    os.system('timidity ' + backing_path)
 
-        note_input = np.array([note_series[-config.SEQ_LEN:]])
-        chord_input = np.array([chord_id_series[-config.SEQ_LEN:]])
+  def run_bgm(self):
+    self.note_on_process.start()
+    self.backing_process.start()
+    self.start_time = time.time()
+    self.last_time = time.time()
+
+  def _post_process(self, output):
+    # toDo add random_flag
+    if True:
+      top_random = [1, 2]
+      shuffle(top_random)
+      pred_note = np.argsort(output)[-top_random[0]]
+      if pred_note == config.CLASS_NUM - 1:  # rest note class
+        pred_note = np.argsort(output)[-top_random[1]]
+    else:
+      pred_note = np.argsort(output)[-1]
+      if pred_note == config.CLASS_NUM - 1:  # rest note class
+        pred_note = np.argsort(output)[-2]
+
+    # print(pred_note, current_chord)
+    self.note_series.append(pred_note)
+    self._note_on(pred_note)
+
+    return pred_note
+
+  def run_melody(self):
+
+    from_start_time = time.time() - self.start_time
+    from_last_time  = time.time() - self.last_time
+    self.last_time  = time.time()
+
+    current_chord = self.chord_list[int(from_start_time // self.second_per_chord)]
+    rest_note_num   = int(from_last_time / self.second_per_chord) 
+    for i in range(rest_note_num):
+      self.note_series.append(config.CLASS_NUM - 1)
+      self.chord_id_series.append(self.chord2id.get_id(current_chord))  # Todo, Consideration chord for rest note
+    self.chord_id_series.append(self.chord2id.get_id(current_chord))  # add next note chord
+
+    note_input  = np.array([self.note_series[-config.SEQ_LEN:]])
+    chord_input = np.array([self.chord_id_series[-config.SEQ_LEN:]])
         
-        feed_dict = {
-          input_note_pl : note_input,
-          input_chord_pl: chord_input,
-          target_pl     : [0],
-        }
-        output = sess.run([pred], feed_dict)
+    feed_dict = {
+      self.input_note_pl : note_input,
+      self.input_chord_pl: chord_input,
+      self.target_pl     : [0],
+    }
+    output = self.sess.run([self.pred], feed_dict)
+    output = np.array(output).flatten()
 
-        output = np.array(output).flatten()
-        """
-        pred_note = np.argsort(output)[-1]
-        if pred_note == config.CLASS_NUM - 1:  # rest note class
-          pred_note = np.argsort(output)[-2]
-        """
-        top_random = [1, 2]
-        shuffle(top_random)
-        pred_note = np.argsort(output)[-top_random[0]]
-        if pred_note == config.CLASS_NUM - 1:  # rest note class
-          pred_note = np.argsort(output)[-top_random[1]]
-        note_series.append(pred_note)
-        print(pred_note, current_chord)
-        note_on(midiOutput, pred_note, volume)
+    pred_note = self._post_process(output)
+    pred_note_name = pretty_midi.note_number_to_name(pred_note)
+    print("chord: {}, note: {}".format(current_chord, pred_note_name))
 
-      del midiOutput
-      pygame.midi.quit()
-    
 
+def demo_run(song_name, ckpt_path):
+  demo = Demo(song_name=song_name, ckpt_path=ckpt_path)
+
+  demo.run_bgm()
+  while True:
+    key = readchar.readchar()
+    if key == 'q':
+      break
+    demo.run_melody()
+  demo.close()
 
 @click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.option(
+  "-s",
+  "--song_name",
+  help="song_name for backing",
+  default="autumn_leaves",
+  required=True
+)
 @click.option(
   "-c",
   "--ckpt_path",
   help="path to ckpt",
+  default="save/0/0_125",
   required=True
 )
-def main(ckpt_path):
-  demo(ckpt_path)
-
+def main(song_name, ckpt_path):
+  demo_run(song_name, ckpt_path)
 
 if __name__ == '__main__':
   main()
