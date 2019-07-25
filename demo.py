@@ -29,7 +29,6 @@ def note_on(midiOutput, pred_note, volume, note_on_time=0.12):
 
 
 def backing_music(backing_midi_name):
-  # os.system('timidity ' + backing_midi_name + ' --adjust-tempo=90')
   os.system('timidity ' + backing_midi_name)
 
 
@@ -55,9 +54,8 @@ def demo(ckpt_path):
     chord_list += chord_list_part
   pm = pretty_midi.PrettyMIDI(backing_midi_name)
   # tempo = pm.get_tempo_changes()[1]
-  tempo = 120
-  note_num_per_chord = 4
-  second_per_chord = 60 / tempo 
+  tempo = 128
+  second_per_chord = (60*4) / tempo
   volume = 300
 
   # setting for pygame
@@ -74,15 +72,6 @@ def demo(ckpt_path):
   note_series     = generate_from_random(config.CLASS_NUM,       seq_len=config.SEQ_LEN) 
   chord_id_series = generate_from_random(config.CHORD_CLASS_NUM, seq_len=config.SEQ_LEN - 1) 
   chord2id        = Chord2Id(demo=True)
-  chord_to_note   = chord2id.get_chord_to_note_dict()
-
-  chord_series = []
-  append_chord_id_series = []
-  for chord in chord_list:
-    for _ in range(note_num_per_chord):
-      chord_series.append(chord)
-      append_chord_id_series.append(chord2id.get_id(chord))
-  chord_id_series += append_chord_id_series
 
   with tf.Graph().as_default():
 
@@ -109,18 +98,18 @@ def demo(ckpt_path):
         if key == 'q':
           break
         elapsed_time = time.time() - start_time
-        current_chord_idx = int(elapsed_time / second_per_chord) + config.SEQ_LEN 
+        current_chord = chord_list[int(elapsed_time // second_per_chord)]
 
         from_last_time = time.time() - last_time
         last_time = time.time()
-        add_rest_note_num = int(from_last_time / second_per_chord) 
-        print(add_rest_note_num)
-        for j in range(add_rest_note_num):
+        rest_note_num = int(from_last_time / second_per_chord) 
+        for j in range(rest_note_num):
           note_series.append(config.CLASS_NUM - 1)
+          chord_id_series.append(chord2id.get_id(current_chord))  # Todo, Consideration chord for rest note
+        chord_id_series.append(chord2id.get_id(current_chord)) 
 
         note_input = np.array([note_series[-config.SEQ_LEN:]])
-        chord_input = np.array([chord_id_series[current_chord_idx-config.SEQ_LEN:current_chord_idx]])
-        print(note_input)
+        chord_input = np.array([chord_id_series[-config.SEQ_LEN:]])
         
         feed_dict = {
           input_note_pl : note_input,
@@ -130,8 +119,8 @@ def demo(ckpt_path):
         output = sess.run([pred], feed_dict)
 
         output = np.array(output).flatten()
-        pred_note = np.argsort(output)[-1]
         """
+        pred_note = np.argsort(output)[-1]
         if pred_note == config.CLASS_NUM - 1:  # rest note class
           pred_note = np.argsort(output)[-2]
         """
@@ -141,7 +130,7 @@ def demo(ckpt_path):
         if pred_note == config.CLASS_NUM - 1:  # rest note class
           pred_note = np.argsort(output)[-top_random[1]]
         note_series.append(pred_note)
-        print(pred_note, chord_series[current_chord_idx - config.SEQ_LEN])
+        print(pred_note, current_chord)
         note_on(midiOutput, pred_note, volume)
 
       del midiOutput
