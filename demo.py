@@ -34,7 +34,7 @@ def song_factory(song_name, repeat_num=3):
                         'Cm7' , 'F7'  , 'BbM7', 'EbM7',
                         'Aø'  , 'D7'  , 'Gm7' , 'Fm7' ,
                         'Aø'  , 'D7'  , 'Gm7' , 'Gm7' ]
-    tempo = 128
+    tempo = 120
   else:
     print("There is no midi for " + song_name)
     sys.exit()
@@ -149,7 +149,7 @@ class Demo:
 
     pred_note = self._post_process(output)
     pred_note_name = pretty_midi.note_number_to_name(pred_note)
-    print("chord: {}, note: {}".format(current_chord, pred_note_name))
+    print("chord: {:4}, note: {:4}".format(current_chord, pred_note_name))
 
 
 def demo_run(song_name, ckpt_path):
