@@ -35,6 +35,35 @@ def song_factory(song_name, repeat_num=3):
                         'Aø'  , 'D7'  , 'Gm7' , 'Fm7' ,
                         'Aø'  , 'D7'  , 'Gm7' , 'Gm7' ]
     tempo = 120
+  elif song_name == 'deacon_blues':
+    chord_list_parts = ['CM7' , 'Em7' , 'A'   , 'D7'  ,
+                        'G7'  , 'B7'  , 'Em7' , 'A7'  ,
+                        'FM7' , 'B7'  ,
+                        'CM7' , 'Em7' , 'A'   , 'D7'  ,
+                        'G7'  , 'B7'  , 'Em7' , 'A7'  ,
+                        'FM7' , 'B7'  ,
+                        'CM7' , 'BbM7',
+                        'DM7' , 'CM7' , 'EbM7', 'E7'  , 
+                        'G7'  , 'F7'  , 'G'   , 'F7'  ,
+                        'G7'  , 'F7'  , 'A'   , 'A7'  ,
+                        'FM7' , 'E7'  , 'Am7' , 'Gm7' ,
+                        'FM7' , 'C'   , 'D'   , 'F'   ,
+                        'Am7' , 'Em7' , 'Dm7' , 'CM7' ,
+                        'BbM7', 'Am7' , 'Am'  , 'C'   ,
+                        'Am7' , 'Em7' , 'Dm7' , 'CM7' ,
+                        'BbM7', 'Am7' , 'Am'  , 'C'   ,
+                        'Am7' , 'Em7' , 'DM7' , 'C'   ,
+                        'EbM7', 'E7'  ,
+                        'G'   , 'F7'  , 'G7'  , 'F7'  ,
+                        'G'   , 'F7'  , 'G7'  , 'D7'  ,
+                        'FM7' , 'E7'  , 'Am7' , 'Bb7' ,
+                        'E7'  , 'B7'  , 'B7' ,  'B7'  ,
+                        'G'   , 'F7'  , 'G7'  , 'F7'  ,
+                        'G'   , 'F7'  , 'G7'  , 'D7'  ,
+                        'FM7' , 'E7'  , 'Am7' , 'Bb7' ,
+                        'E7'  , 'B7'  , 'B7' ,  'B7' ,
+                        ]
+    tempo = 140
   else:
     print("There is no midi for " + song_name)
     sys.exit()
@@ -78,7 +107,7 @@ class Demo:
                                         self.input_chord_pl,
                                         self.is_training_pl)
       self.saver = tf.train.Saver()
-      self.sess = tf.Session()
+      self.sess  = tf.Session()
       self.saver.restore(self.sess, ckpt_path)
 
     # init for input
@@ -96,12 +125,12 @@ class Demo:
     self.midiOutput.note_off(pred_note, self.volume)
 
   def _backing_on(self,backing_path):
-    os.system('timidity ' + backing_path)
+    os.system('timidity ' + backing_path + ' --volume=10')
 
   def run_bgm(self):
     self.note_on_process.start()
     self.backing_process.start()
-    self.start_time = time.time()
+    self.start_time = time.time()  + self.second_per_chord # tmp
     self.last_time = time.time()
 
   def _post_process(self, output):
