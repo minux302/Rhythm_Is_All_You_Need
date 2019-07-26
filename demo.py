@@ -23,6 +23,10 @@ def generate_from_random(class_num, seq_len=50):
   return generate
 
 
+def generate_from_mono(seq_len=50):
+  generate = np.random.randint(70, 85, seq_len).tolist()
+  return generate
+
 def song_factory(song_name):
 
   if song_name == 'autumn_leaves':
@@ -35,6 +39,7 @@ def song_factory(song_name):
                         'Aø'  , 'D7'  , 'Gm7' , 'Fm7' ,
                         'Aø'  , 'D7'  , 'Gm7' , 'Gm7' ]
     tempo      = 120
+    # tempo      = 131
     repeat_num = 3
   elif song_name == 'deacon_blues':
     chord_list_parts = ['CM7' , 'Em7' , 'A'   , 'D7'  ,
@@ -64,7 +69,8 @@ def song_factory(song_name):
                         'FM7' , 'E7'  , 'Am7' , 'Bb7' ,
                         'E7'  , 'B7'  , 'B7' ,  'B7' ,
                         ]
-    tempo      = 140
+    # tempo      = 140
+    tempo      = 151
     repeat_num = 1
   else:
     print("There is no midi for " + song_name)
@@ -115,8 +121,9 @@ class Demo:
       self.saver.restore(self.sess, ckpt_path)
 
     # init for input
-    self.note_series     = generate_from_random(config.CLASS_NUM,       seq_len=config.SEQ_LEN) 
-    self.chord_id_series = generate_from_random(config.CHORD_CLASS_NUM, seq_len=config.SEQ_LEN - 1) 
+    # self.note_series     = generate_from_random(config.CLASS_NUM,       seq_len=config.SEQ_LEN)
+    self.note_series     = generate_from_mono(seq_len=config.SEQ_LEN)
+    self.chord_id_series = generate_from_random(config.CHORD_CLASS_NUM, seq_len=config.SEQ_LEN - 1)
     self.chord2id        = Chord2Id(demo=True)
 
   def close(self):
@@ -132,18 +139,11 @@ class Demo:
 
   def _backing_on(self,backing_path, volume_ratio):
     os.system('timidity {} --volume={}'.format(backing_path, volume_ratio))
-    """
-    from pydub import AudioSegment
-    from pydub.playback import play
-
-    audio_data = AudioSegment.from_mp3('./sample.mp3')
-    play(audio_data)
-    """
 
   def run_bgm(self):
     self.note_on_process.start()
     self.backing_process.start()
-    self.start_time = time.time()  + self.second_per_chord # tmp
+    self.start_time = time.time() + self.second_per_chord  # tmp
     self.last_time = time.time()
 
   def _post_process(self, output):
