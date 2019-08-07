@@ -23,10 +23,6 @@ def generate_from_random(class_num, seq_len=50):
   return generate
 
 
-def generate_from_mono(seq_len=50):
-  generate = np.random.randint(70, 85, seq_len).tolist()
-  return generate
-
 def song_factory(song_name):
 
   if song_name == 'autumn_leaves':
@@ -69,8 +65,8 @@ def song_factory(song_name):
                         'FM7' , 'E7'  , 'Am7' , 'Bb7' ,
                         'E7'  , 'B7'  , 'B7' ,  'B7' ,
                         ]
-    # tempo      = 140
-    tempo      = 151
+    tempo      = 140
+    # tempo      = 151
     repeat_num = 1
   else:
     print("There is no midi for " + song_name)
@@ -121,8 +117,7 @@ class Demo:
       self.saver.restore(self.sess, ckpt_path)
 
     # init for input
-    # self.note_series     = generate_from_random(config.CLASS_NUM,       seq_len=config.SEQ_LEN)
-    self.note_series     = generate_from_mono(seq_len=config.SEQ_LEN)
+    self.note_series     = generate_from_random(config.CLASS_NUM,       seq_len=config.SEQ_LEN)
     self.chord_id_series = generate_from_random(config.CHORD_CLASS_NUM, seq_len=config.SEQ_LEN - 1)
     self.chord2id        = Chord2Id(demo=True)
 
