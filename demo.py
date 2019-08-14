@@ -190,7 +190,9 @@ def demo_run(song_name, ckpt_path):
     key = ord(getch())
     if key == 27: # esc
       break
+    start = time.time()
     demo.run_melody()
+    print(time.time() - start)
   demo.close()
 
 @click.command(context_settings=dict(help_option_names=['-h', '--help']))
@@ -205,7 +207,7 @@ def demo_run(song_name, ckpt_path):
   "-c",
   "--ckpt_path",
   help="path to ckpt",
-  default="save/0/0_125",
+  default="save/v0/0_125",
   required=True
 )
 def main(song_name, ckpt_path):

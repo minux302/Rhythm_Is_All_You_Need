@@ -54,7 +54,10 @@ class Model:
     x = tf.keras.layers.Concatenate()([note_x, chord_x])
 
     x = tf.keras.layers.Bidirectional(tf.keras.layers.GRU(self.rnn_unit))(x)
+    # x = tf.keras.layers.GRU(self.rnn_unit)(x)
 
     x = tf.keras.layers.Dense(self.class_num, activation=None)(x)
+
+    x = tf.identity(x, name="output")
 
     return x 
